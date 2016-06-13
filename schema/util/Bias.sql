@@ -1,0 +1,5 @@
+CREATE FUNCTION Bias(predicted real, observed real) RETURNS real 
+  AS 'SELECT $1 - $2;'
+  LANGUAGE SQL
+  IMMUTABLE
+  RETURNS NULL ON NULL INPUT;

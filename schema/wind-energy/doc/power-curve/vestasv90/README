@@ -1,0 +1,11 @@
+2014-06-03: The Vesta V90 power curve was digitized using the following method:
+*This was digitized from the Vestas V90 project brochure at http://www.ceoe.udel.edu/windpower/resources/ProductbrochureV90_3_0_UK.pdf
+*WebPlotDigitizer was used to digitize the plot: arohatgi.info/WebPlotDigitizer/app/
+
+The polynomial for the 4-15 m/s part of the power curve is as follows:
+power(x) = -45 + 263x - 62.8x^2 + 9.27x^3 - 0.349x^4
+
+cut-in: 4.0 m/s
+cut out: 25.0 m/s
+
+This piecewise defined function is portrayed in VESTASV90.sql
