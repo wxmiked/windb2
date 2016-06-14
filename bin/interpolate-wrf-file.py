@@ -6,16 +6,18 @@
 # mike@sailtactics.com
 #
 # Created: 2014-11-05
-# Modified: 2015-04-17
+# Modified: 2016-06-13
 #
 #
 # Description: Inserts a arbitrary WRF netCDF file into a WindDB at the specified height.
 #
 # Returns -1 if there is an IntegrityError, which is triggered by a duplicate key error if the data already exists. 
 #
+import configparser
 import fnmatch
 import os
 import sys
+import re
 dir = os.path.dirname(__file__)
 sys.path.append(os.path.join(dir, '../'))
 
@@ -31,14 +33,19 @@ logging.basicConfig()
 
 # Get the command line opts
 parser = argparse.ArgumentParser()
-parser.add_argument("ncfile", type=str, help="WRF netCDF file prefix (do NOT use the '*' wildcard)")
+parser.add_argument("ncfile", type=str, help="WRF netCDF filename to interpolate")
 args = parser.parse_args()
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
 
-# Insert all of the files that match the wildcard pattern
-for f in sorted(os.listdir('.')):
+# Get rid of escaped colon characters that are often added in Unix shells
+ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
 
-    if fnmatch.fnmatch(f, args.ncfile + '*[0-9]') and not os.path.exists(f + heightinterpfile.HeightInterpFile.outfile_extension):
-
-        heightinterpfile.HeightInterpFile(wrf_config).interp_file(f)
+# Interpolate this file
+try:
+    heightinterpfile.HeightInterpFile(wrf_config).interp_file(ncfile_cleansed)
+except configparser.NoSectionError:
+    msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+    print(msg)
+    logger.error(msg)
+    sys.exit(-1)
