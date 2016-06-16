@@ -5,7 +5,7 @@
 # mike@sailorsenergy.com
 #
 # Created: 2014-11-19
-# Modified: 2016-03-02
+# Modified: 2016-06-16
 #
 #
 # Description: Creates a new WinDB2 database with minimal functionality
@@ -50,6 +50,7 @@ args = parser.parse_args()
 try:
     windb = windb2.WinDB2(args.dbhost, args.dbname, dbUser=args.dbuser, port=args.port)
     windb.connect()
+
 except psycopg2.OperationalError as e:
 
     # See if we can create the database
@@ -57,7 +58,13 @@ except psycopg2.OperationalError as e:
 
         # Create the database
         print('database "{}" does not exist... trying to create it'.format(args.dbname))
-        conn = psycopg2.connect(user=args.dbuser, host=args.dbhost)
+        try:
+            conn = psycopg2.connect(user=args.dbuser, host=args.dbhost)
+        except psycopg2.OperationalError as e:
+            print('Unable to create a new database. You will have to do this manually outside of this script.')
+            print('Run this command to create the database: % createdb --user={} {}'.format(args.dbuser, args.dbname))
+            print('Reason for failure: ' + str(e))
+            sys.exit(-1)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         conn.cursor().execute('CREATE DATABASE "{}"'.format(args.dbname))
         conn.close()
@@ -67,12 +74,36 @@ except psycopg2.OperationalError as e:
         windb = windb2.WinDB2(args.dbhost, args.dbname, dbUser=args.dbuser, port=args.port)
         windb.connect()
 
+    elif str(e).strip() == 'fe_sendauth: no password supplied':
+        print('Failed to connect. You need to have a $HOME/.pgpass set up correctly with your password.', file=sys.stderr)
+        print('Details here: https://wiki.postgresql.org/wiki/Pgpass', file=sys.stderr)
+        sys.exit(-1)
+
     else:
+        print('Failed to connect to your database.', file=sys.stderr)
+        print('Failure reason:', file=sys.stderr)
         logger.error(e)
         sys.exit(-1)
 
-# Enable PostGIS and change ownership of the necessary tables to teh new user
-windb.curs.execute('CREATE EXTENSION postgis')
+# Make sure the supplied user is a PostgreSQL superuser
+windb.curs.execute('SELECT usesuper FROM pg_user WHERE usename = \'{}\''.format(args.dbuser))
+if not windb.curs.fetchone()[0]:
+    print('Error: The database user must have superuser permissions to proceed.')
+    print('To fix this, as another superuser (e.g. postgres) run this command:')
+    print('psql# ALTER USER {} WITH SUPERUSER;'.format(args.dbuser))
+
+# Enable PostGIS and change ownership of the necessary tables to the new user
+try:
+    windb.curs.execute('CREATE EXTENSION postgis')
+except psycopg2.ProgrammingError as e:
+    if str(e).strip() != 'extension "postgis" already exists':
+        logger.error('Failure when trying to add create the "postgis" extension in the Postgres DB.')
+        logger.error('You may need to be the DB superuser (usually "postgres" user) to create the extension.')
+        logger.error(e)
+        exit(-1)
+    else:
+        # Rollback from the 'extension "postgis" already exists or the following commands will fail
+        windb.conn.rollback()
 tables_to_change_owner = ['geography_columns', 'raster_columns', 'raster_overviews', 'spatial_ref_sys']
 for table in tables_to_change_owner:
     windb.curs.execute('ALTER TABLE {} OWNER TO {}'.format(table, args.dbuser))
@@ -80,7 +111,12 @@ for table in tables_to_change_owner:
 # Enable core
 os.chdir(script_dir + '/../schema/core')
 for sql in ['Domain.sql', 'HorizGeom.sql', 'GeoVariable.sql']:
-    windb.curs.execute(open(sql, 'r').read())
+    try:
+        windb.curs.execute(open(sql, 'r').read())
+    except psycopg2.ProgrammingError as e:
+        if str(e).strip() == 'relation "domain" already exists':
+            print('It looks like you have already initialzed a WinDB2 in the database.')
+            sys.exit(-1)
 
 # Enable utilities
 os.chdir(script_dir + '/../schema/util')
@@ -94,6 +130,9 @@ for sql in ['WindError.sql', 'WindErrorShortView.sql']:
 
 # Commit
 windb.conn.commit()
+
+# Info
+print('Successfully created your WinDB2. Enjoy!')
 
 # Add the tablefunc extension, which is useful for the crosstab functionality (rows as columns)
 # http://www.postgresql.org/docs/9.1/static/tablefunc.html
