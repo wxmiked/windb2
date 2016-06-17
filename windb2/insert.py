@@ -188,14 +188,14 @@ class Insert(object):
 
         # Create new grid points, using a temp file for the SQL copy command
         tempFile = tempfile.NamedTemporaryFile(mode='w');
-        for y in range(xCoordArray.shape[0]):
+        for y in range(xCoordArray.shape[1]):
             
             # Info that continually updates
             status_msg = "\rInserting new points: {:000.1%} done"
             sys.stdout.write(status_msg.format(float(y)/xCoordArray.shape[1]))
             sys.stdout.flush()
 
-            for x in range(xCoordArray.shape[1]):
+            for x in range(xCoordArray.shape[2]):
                 
                 # Create the grid point
                 # You have to do it with this following syntax (ST_GeomFromText doesn't work with the COPY_FROM function)
