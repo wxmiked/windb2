@@ -140,10 +140,6 @@ We can also see that a table names `wind_1` contains all of the wind speed and d
 
 More WRF domains can be created in the WinDB2 by issuing the same command. Although it is not a requirement, it makes sense to keep the WinDB2 domain numbers consistent with the WRF domain numbers.
 
-## Inserting lots of wrfout files
-
-Inserting lots of wrfout files is easy. You just rerun the same command you used to create the WinDB2 domain except you replace the `-n` argument with the `-d` argument and the domain that you want to insert into. In our previous example, we want use domain 1, so our command to insert many wrfout_d01 files is: `insert-windb-file.py -d 1 localhost postgres test-windb2-1 wrfout_d01`
-
 # Supported Models
 
 Most of the functionality of WinDB(1) was directed at the NCAR's Weather Research and Forecasting Model (WRF). The original WinDB code aimed to rapidly post-process and validate WRF wind fields. The new version aims to be an extensible database for both atmospheric and ocean models.
