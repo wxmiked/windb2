@@ -188,26 +188,26 @@ class Insert(object):
 
         # Create new grid points, using a temp file for the SQL copy command
         tempFile = tempfile.NamedTemporaryFile(mode='w');
-        for y in range(xCoordArray.shape[0]):
+        for y in range(xCoordArray.shape[1]):
             
             # Info that continually updates
             status_msg = "\rInserting new points: {:000.1%} done"
             sys.stdout.write(status_msg.format(float(y)/xCoordArray.shape[1]))
             sys.stdout.flush()
 
-            for x in range(xCoordArray.shape[1]):
+            for x in range(xCoordArray.shape[2]):
                 
                 # Create the grid point
                 # You have to do it with this following syntax (ST_GeomFromText doesn't work with the COPY_FROM function)
                 # See http://postgis.17.x6.nabble.com/Adding-postgis-column-in-COPY-command-td3520584.html
-                geom = "SRID=" + str(srid) + ";POINT(" + str(xCoordArray[y, x]) + " " + str(yCoordArr[y, x]) + ")"
+                geom = "SRID=" + str(srid) + ";POINT(" + str(xCoordArray[0, y, x]) + " " + str(yCoordArr[0, y, x]) + ")"
                 print('{}, {}, {}, {}'.format(geom, domainKey, x, y), file=tempFile)
 
         # Print the last update message
         sys.stdout.write((status_msg + '\n').format(1.))
 
         # Create a temporary table to import the native coordinate into
-        self.windb2.curs.execute('CREATE TEMP TABLE horizgeom_import () INHERITS (horizgeom)')
+        self.windb2.curs.execute('CREATE TEMP TABLE horizgeom_import () INHERITS (horizgeom) ON COMMIT DROP')
 
         # Insert all of the grid points into the temp table
         tempFile.flush()

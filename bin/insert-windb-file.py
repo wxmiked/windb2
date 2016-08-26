@@ -13,9 +13,10 @@
 #
 # Returns -1 if there is an IntegrityError, which is triggered by a duplicate key error if the data already exists. 
 #
-import fnmatch
 import os
 import sys
+import re
+import configparser
 
 dir = os.path.dirname(__file__)
 sys.path.append(os.path.join(dir, '../'))
@@ -57,14 +58,18 @@ windb2_config.read('windb2-wrf.conf')
 # Create the inserter from this config
 inserter = insert.InsertWRF(windb2, windb2_config)
 
-# Insert all of the files that match the wildcard pattern
-for f in sorted(os.listdir('.')):
+# Get rid of escaped colon characters that are often added in Unix shells
+ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
 
-    if fnmatch.fnmatch(f, args.ncfile + '*' + heightinterpfile.HeightInterpFile.outfile_extension):
+# Open the WRF netCDF file
+ncfile = Dataset(ncfile_cleansed, 'r')
 
-        # Open the WRF netCDF file
-        ncfile = Dataset(f, 'r')
-
-        # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
-        inserter.insert_variable(ncfile, 'WIND', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
-                                 mask=args.mask)
+# Insert the file, domainKey should be None if it wasn't set, which will create a new domain
+try:
+    inserter.insert_variable(ncfile, 'WIND', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
+                             mask=args.mask)
+except configparser.NoSectionError:
+    msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+    print(msg)
+    logger.error(msg)
+    sys.exit(-1)
