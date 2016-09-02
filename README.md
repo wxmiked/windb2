@@ -88,9 +88,9 @@ Creating height interpolated files is easy:
 
 ## Inserting into the WinDB2
 
-In order to configure your WinDB2 with your new WRF domain(s), you have to run a one-time command to set up a new WinDB2 domain. Use the `insert-windb-file.py` command with the `-n` flag to create a new domain in the WinDB2.
+In order to configure your WinDB2 with your new WRF domain(s), you have to run a one-time command to set up a new WinDB2 domain. Use the `insert-windb2-file.py` command with the `-n` flag to create a new domain in the WinDB2.
 ```Shell
-/tmp/windb2-example $ insert-windb-file.py -n localhost postgres test-windb2-1 wrfout_d01_2016-02-14_00
+/tmp/windb2-example $ insert-windb2-file.py -n localhost postgres test-windb2-1 wrfout_d01_2016-02-14_00
 Opening connection using dns: dbname=test-windb2-1 host=localhost user=postgres port=5432
 ...
 Processing time:  2016-02-14T00:00:00.000Z
