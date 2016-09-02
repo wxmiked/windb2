@@ -17,8 +17,9 @@ Running
 The command starts the WinDB2, opens port 7000 to it, and links a volume outside of the container to store the main database files.
 
 ```shell
-% docker run --name mywindb2 -p 7000:5342 -v /var/lib/postgresql/data:/data/docker-postgres-windb2 -e POSTGRES_PASSWORD=mysecretpassword -d postgres-windb2
+% docker run --name mywindb2 -p 7000:5342 -v /data/docker-windb2:/var/lib/postgresql/data -e  POSTGRES_PASSWORD=mysecretpassword -d postgres-windb2
 ```
+Note if you want this image to always restart (e.g. in a production environment), add the `--restart=always` arg.
 
 Connect to the instance
 =======================
