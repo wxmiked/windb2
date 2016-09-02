@@ -13,10 +13,7 @@
 import logging
 
 # Set up logging for InsertAbstract
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig()
-
+logger = logging.getLogger('windb2')
 
 def create_wrf_srid(windb2_instance, ncfile):
     """Create a new SRID for this domain based on a spherical earth.
@@ -45,7 +42,7 @@ def create_wrf_srid(windb2_instance, ncfile):
             "'+proj=longlat +a=6370000 +b=6370000 +no_defs') RETURNING srid"
 
     # Info
-    print("Creating a new SRID for this domain:", srid_sql)
+    logger.debug("Creating a new WRF SRID for this domain: {}".format(srid_sql))
 
     # Get the next unique SRID number in the database
     windb2_instance.curs.execute(srid_sql)

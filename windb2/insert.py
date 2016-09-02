@@ -15,9 +15,7 @@ class Insert(object):
         self.srid = "unset"
 
         # Logging
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.DEBUG)  # TODO this should be coming from the windb2.conf file
-        logging.basicConfig()
+        self.logger = logging.getLogger('windb2')
     
     def create_new_domain(self, domain_name, data_source, resolution, units, mask=None):
         """Creates a new empty domain with an associated unique domain ID.
@@ -34,14 +32,14 @@ class Insert(object):
         # Create a new domain
         sql = "INSERT INTO Domain(name, resolution, units, datasource, mask) VALUES ('{}', '{}', '{}', '{}', {}) " \
               "RETURNING key".format(domain_name, resolution, units, data_source, ("'" + mask + "'") if mask is not None else 'NULL')
-        logging.debug("Running command to create new domain: " + sql);
+        self.logger.debug("Running command to create new domain: " + sql);
         self.windb2.curs.execute(sql);
         
         # Get the unique key
         domain_key = self.windb2.curs.fetchone()[0];
         
         # Info
-        logging.info("Created domain number: {}".format(domain_key))
+        print("Created domain number: {}".format(domain_key))
 
         return domain_key
 
@@ -50,7 +48,7 @@ class Insert(object):
         exclude the insertion of some points.
 
         :param:
-        domain_key A 2D geospatial PostGIS object overlain with the domain points
+        domain_key A 2D PostGIS object that overlays the domain points that will be kept
         """
 
         # Have to set autocommit to true so this doesn't run as a transaction or some parts will fail
@@ -58,19 +56,23 @@ class Insert(object):
 
         # Get the SRID of the domain, assume they are all the same (because they are)
         sql = 'SELECT st_srid(geom) FROM horizgeom WHERE domainkey={} LIMIT 1'.format(domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
-        data_srid = self.windb2.curs.fetchone()[0]
+        if self.windb2.curs.rowcount != 0:
+            data_srid = self.windb2.curs.fetchone()[0]
+        else:
+            self.logger.error('No results were were returned for the new domain SRID. Exiting.')
+            sys.exit(-1)
 
         # Get the horiz resolution, which was calculated before
         sql = "SELECT resolution FROM domain WHERE key=" + domain_key
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         res_m = self.windb2.curs.fetchone()[0]
 
         # Get the SRID of the mask object, assume they are all the same (because they are)
         sql = 'SELECT ST_SRID(geom) FROM {} LIMIT 1'.format(mask)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         mask_srid = self.windb2.curs.fetchone()[0]
 
@@ -78,7 +80,7 @@ class Insert(object):
         geomindex_name = 'horizgeom_gist_index_srid_{}_domain_{}'.format(data_srid, domain_key)
         sql = 'CREATE INDEX {} ON horizgeom ' \
               'USING GIST(ST_Transform(geom,{})) WHERE domainkey={}'.format(geomindex_name, mask_srid, domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Commit all previous commands so the following can run
@@ -86,7 +88,7 @@ class Insert(object):
 
         # Analyze the table so that the geometry index is actually used
         sql = 'VACUUM ANALYZE horizgeom(geom)'
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
 		# Create a temporary table of the buffered mask object.  While this isn't wholly
@@ -95,25 +97,25 @@ class Insert(object):
 		# a buffer size of resMeters/2.0. Since the cost is only including a few more points in the
         # database and the risk is not building the database with the required info, the
 		# buffer size has been increased to resMeters.
-        logging.debug('Creating the mask table for domain {} with the mask geometry {}'.format(domain_key, mask))
+        self.logger.info('Creating the mask table for domain {} with the mask geometry {}'.format(domain_key, mask))
         sql = 'CREATE TABLE buffered_mask_{}(key SERIAL)'.format(domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         sql = "SELECT AddGeometryColumn('buffered_mask_{}', 'geom', {}, 'POLYGON', 2, false)".format(domain_key, data_srid)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         sql = 'ALTER TABLE buffered_mask_{} DROP CONSTRAINT enforce_srid_geom'.format(domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         sql = 'INSERT INTO buffered_mask_{} (geom) ' \
               'SELECT ST_Buffer(ST_Transform(geom, {}), {}) AS geom FROM {}'.format(domain_key, data_srid, res_m, mask)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Create an index for the buffered object
         sql = 'CREATE INDEX horizbuffer_gist_index_srid_{}_domain_{} ' \
               'ON buffered_mask_{} USING GIST(geom)'.format(data_srid, domain_key, domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Get rid of redundant points in the mask
@@ -123,40 +125,39 @@ class Insert(object):
               ' WHERE (ST_Contains(a.geom, b.geom) OR ' \
               '       ST_Area(b.geom)<pow({},2)) AND a.key<>b.key)' \
               ''.format(domain_key, domain_key, domain_key, float(res_m)*1.5)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Create a new table that is the spatial join of the maskTableName and the newly created geometry
-        logging.debug('Creating the mask table for domain {} with the mask geometry '.format(domain_key, mask))
         sql = 'CREATE TABLE geom_mask_{} AS ' \
               'SELECT DISTINCT h.key AS geomkey ' \
               'FROM horizgeom h, buffered_mask_{} b ' \
               'WHERE h.domainkey={} ' \
               'AND ST_Intersects(h.geom, ST_Transform(b.geom, {}))'.format(domain_key, domain_key, domain_key, data_srid)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Get rid of the mask geometry that we no longer need
         sql = 'DROP INDEX {}'.format(geomindex_name)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Delete all of the geomkeys that we no longer need
         sql = 'DELETE FROM horizgeom ' \
               '       WHERE domainkey={} AND ' \
               '             key NOT IN (SELECT geomkey FROM geom_mask_{})'.format(domain_key, domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Delete the buffered mask which we no longer need
         sql = 'DROP TABLE buffered_mask_{}'.format(domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
 		# Create an index on the geomkey in the geom_mask for the domain
         sql = 'CREATE INDEX geom_mask_geomkey_index_{} ' \
               ' ON geom_mask_{}(geomkey)'.format(domain_key, domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Add a function that checks to see if a particular geomkey is in the particular mask
@@ -166,7 +167,7 @@ class Insert(object):
               "SELECT INTO gid geomkey FROM geom_mask_{} WHERE geomkey=new.geomkey; " \
               "IF gid IS NOT NULL THEN RETURN NEW; END IF; RETURN NULL; END ' LANGUAGE plpgsql;" \
               "".format(mask, domain_key, domain_key)
-        logging.debug(sql)
+        self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
         # Turn autocommit back off
@@ -217,10 +218,11 @@ class Insert(object):
             print >> sys.stderr, "ERROR ON INSERT: ", e.message
             raise e
 
-        # Copy all of the newly inserted points over as Google spherical coordinates
+        # Copy all of the newly inserted points over as Google Spherical Mercator coordinates
         # (this should eliminate coordinate transformations necessary for tile rendering and make Geoserver hella fast)
         try:
-            self.windb2.curs.execute('INSERT INTO horizgeom SELECT key, domainkey, x, y, ST_Transform(geom, 900913) FROM horizgeom_import WHERE domainkey={}'.format(domainKey))
+            count = self.windb2.curs.execute('INSERT INTO horizgeom SELECT key, domainkey, x, y, ST_Transform(geom, 900913) FROM horizgeom_import WHERE domainkey={}'.format(domainKey))
+            self.logger.debug('Inserted {} new points'.format(self.windb2.curs.rowcount))
         except psycopg2.IntegrityError as e:
             print >> sys.stderr, "ERROR ON INSERT: ", e.message
             raise e
@@ -271,7 +273,7 @@ class Insert(object):
             sql = "ALTER TABLE " + tableName + "_" + str(domainKey) + " ADD COLUMN " + varList[i] + " " + varType[i]
             if constraint is not None and check is not None:
                 sql += " CONSTRAINT " + constraint[i] + " CHECK (" + check[i] + ")"
-            logging.info("Running: " + sql)
+            self.logger.info("Running: " + sql)
             self.windb2.curs.execute(sql)
 
 	    # Add a trigger that just ignores any wind speed insert where the geomkey isn't in the mask
@@ -285,7 +287,7 @@ class Insert(object):
                   'FOR EACH ROW ' \
                   'EXECUTE PROCEDURE geomkey_in_{}_domain_{}()' \
                   ''.format(tableName, domainKey, tableName, domainKey, mask, domainKey)
-            logging.debug(sql)
+            self.logger.debug(sql)
             self.windb2.curs.execute(sql)
 
         # Commit the changes
@@ -310,7 +312,7 @@ class Insert(object):
         keyArray = numpy.zeros((xMax,yMax),numpy.int)
          
         # Info
-        print("Calculating the x,y pair geomkeys (", xMax, ",", yMax, ")")
+        self.logger.info("Calculating the x,y pair geomkeys ({},{})...".format(xMax, yMax))
 
         # Get the matching key pairs
         sql = "SELECT sx.x, sy.y, key " + \
@@ -359,7 +361,7 @@ class Insert(object):
             try:
                 self.windb2.curs.execute(sql)
             except psycopg2.ProgrammingError as detail:
-                logging.error("Inserting a new domain domain failed. Exiting...")
+                self.logger.error("Inserting a new domain domain failed. Exiting...")
                 sys.exit(-1)
 
             # Get the domain key
@@ -384,7 +386,7 @@ class Insert(object):
 
             # Make sure there's only one geomkey for this domain
             sql = 'SELECT count(geom) FROM horizgeom WHERE domainkey={}'.format(domain_key)
-            logging.debug(sql)
+            self.logger.debug(sql)
             self.windb2.curs.execute(sql)
             geomkey_count = self.windb2.curs.fetchone()[0]
             if geomkey_count != 1:
@@ -392,7 +394,7 @@ class Insert(object):
 
             # Get the geomkey for the location
             sql = 'SELECT key FROM horizgeom WHERE domainkey={} AND x=0 AND y=0'.format(domain_key)
-            logging.debug(sql)
+            self.logger.debug(sql)
             self.windb2.curs.execute(sql)
             geomkey = self.windb2.curs.fetchone()[0]
 
@@ -401,16 +403,16 @@ class Insert(object):
             sql = "SELECT st_distance_sphere(geom, " \
                   "st_geomfromtext('POINT({} {})',4326)) FROM horizgeom " \
                   "WHERE key={}".format(longitude, latitude, geomkey)
-            logging.debug(sql)
+            self.logger.debug(sql)
             self.windb2.curs.execute(sql)
             distance = self.windb2.curs.fetchone()[0]
             if distance > 100:
-                logging.warning('Station {} was reported to be {} m away from its orignal location'.format(data_name,
+                self.logger.warning('Station {} was reported to be {} m away from its orignal location'.format(data_name,
                                                                                                            distance))
 
             # Make sure we actually found a geomkey
             if geomkey is None:
-                logging.error('This query did not return a geomkey: {}'.format(sql))
+                self.logger.error('This query did not return a geomkey: {}'.format(sql))
                 raise ValueError('No geomkey found to match the insert location.')
 
         # Otherwise, this is an ideal domain and there is not geom
@@ -461,8 +463,8 @@ class Insert(object):
                 # Otherwise, just notify that the insert failed because of duplicate data. We do re-raise this error
                 # because it's assumed that we want to suplement the WinDB with other data-heights if available.
                 else:
-                    logging.warning('ERROR ON INSERT: {}'.format(e.pgerror))
-                    logging.warning('Use \'replace_data=True\' if you want the data to be reinserted.')
+                    self.logger.warning('ERROR ON INSERT: {}'.format(e.pgerror))
+                    self.logger.warning('Use \'replace_data=True\' if you want the data to be reinserted.')
                     self.windb2.conn.rollback()
 
         # Commit the changes

@@ -28,7 +28,7 @@ from windb2.model.wrf import insert, heightinterpfile, config
 import logging
 
 # Set up logging level
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('windb2')
 logger.setLevel(logging.DEBUG)
 logging.basicConfig()
 
