@@ -11,7 +11,7 @@ import windb2.model.wrf.constants as constants
 import logging
 
 # Set up logging for this package
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('windb2')
 logger.setLevel(logging.INFO)
 logging.basicConfig()
 

@@ -29,7 +29,7 @@ import logging
 
 # Set up logging level
 logger = logging.getLogger('windb2')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
 logging.basicConfig()
 
 # Get the command line opts

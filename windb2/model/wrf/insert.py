@@ -28,8 +28,7 @@ class InsertWRF(Insert):
         self.config = config
 
         # Logging
-        self.loggerSQL = logging.getLogger(__name__)
-        self.loggerSQL.setLevel(logging.DEBUG) # TODO this should be coming from the windb2.conf file
+        self.loggerSQL = logging.getLogger('windb2')
 
     def insert_variable(self, ncfile, var_name, table_name, domain_key=None, replace_data=False, sql_where="true",
                         file_type='windb2', mask=None):

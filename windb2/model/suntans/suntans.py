@@ -26,9 +26,7 @@ import logging
 import pytz
 
 # Set up logging for this package
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logging.basicConfig()
+logger = logging.getLogger('windb2')
 
 """Inserts a netCDF file with SUNTANS tidal current output into a WinDB2 database.
    *

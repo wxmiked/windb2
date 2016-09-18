@@ -15,8 +15,7 @@ class WinDB2:
         self._port = port
 
         # Logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG) # TODO this should be coming from the windb2.conf file
+        self.logger = logging.getLogger('windb2')
 
     def connect(self):
         """ Connects to a WinDB database.

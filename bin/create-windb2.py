@@ -22,8 +22,8 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 # Set up logging level
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('windb2')
+logger.setLevel(logging.WARNING)
 logging.basicConfig()
 
 # Set all the relevant args

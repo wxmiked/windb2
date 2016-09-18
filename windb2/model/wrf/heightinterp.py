@@ -30,9 +30,7 @@ from scipy import linalg
 from windb2 import util
 
 # Set up logging for this package
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig()
+logger = logging.getLogger('windb2')
 
 def calculate_height(etaLevel, terrainHeight = 0,
                     baseSeaLevelPressure = constants.baseSeaLevelPressure,
@@ -156,7 +154,7 @@ def uv_column_interp(u_mass_column, v_mass_column, heights_above_ground, heights
         v_mass_coord_interp_linear = numpy.interp(heights_to_interp[~mask_heights_to_interp_log_law],
                                                   heights_above_ground, v_mass_column)
     else:
-        logger.warn('No eta-level heights were in the range of LINEAR interpolation.')
+        logger.info('No eta-level heights were in the range of LINEAR interpolation.')
         u_mass_coord_interp_linear = []
         v_mass_coord_interp_linear = []
 
@@ -177,8 +175,8 @@ def uv_column_interp(u_mass_column, v_mass_column, heights_above_ground, heights
         else:
             speed_interp_log_law = log_law_interp(speed, heights_above_ground,
                                                   heights_to_interp[mask_heights_to_interp_log_law], heights_above_ground[1])
-            logger.warn('Had to use height above 100 m for log-linear log-law interp')
-            logger.warn('Heights used for log-linear log-law interp: {} m and {} m'
+            logger.info('Had to use height above 100 m for log-linear log-law interp')
+            logger.info('Heights used for log-linear log-law interp: {} m and {} m'
                         .format(heights_above_ground[0], heights_above_ground[1]))
 
     # Use the log-law with the WRF ZNT (surface roughness) to diagnose U,V
@@ -187,7 +185,7 @@ def uv_column_interp(u_mass_column, v_mass_column, heights_above_ground, heights
                                numpy.log(heights_to_interp[mask_heights_to_interp_log_law] / z_o) / \
                                numpy.log(numpy.min(heights_above_ground) / z_o)
     else:
-        logger.debug('No eta-level heights were in the range of LOG-LAW interpolation.')
+        logger.info('No eta-level heights were in the range of LOG-LAW interpolation.')
         speed_interp_log_law = []
 
     # For log-law interpolation, use the same wind direction as the bottom level where we have WRF data for the

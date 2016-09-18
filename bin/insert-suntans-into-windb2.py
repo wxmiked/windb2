@@ -27,8 +27,8 @@ from windb2.model.suntans import suntans
 import logging
 
 # Set up logging for InsertAbstract
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = logging.getLogger('windb2')
+logger.setLevel(logging.WARNING)
 logging.basicConfig()
 
 # Get the command line opts

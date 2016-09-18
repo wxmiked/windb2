@@ -26,17 +26,17 @@ from windb2.model.wrf import heightinterpfile
 from windb2.model.wrf import config
 import logging
 
-# Set up logging for InsertAbstract
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig()
-
 # Get the command line opts
 parser = argparse.ArgumentParser()
 parser.add_argument("ncfile", type=str, help="WRF netCDF filename to interpolate")
 args = parser.parse_args()
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
+
+# Set up logging for InsertAbstract
+logger = logging.getLogger('windb2')
+logger.setLevel(logging.WARNING)
+logging.basicConfig()
 
 # Get rid of escaped colon characters that are often added in Unix shells
 ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
