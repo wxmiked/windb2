@@ -31,22 +31,6 @@ class InsertWRF(Insert):
         self.loggerSQL = logging.getLogger(__name__)
         self.loggerSQL.setLevel(logging.DEBUG) # TODO this should be coming from the windb2.conf file
 
-    @staticmethod
-    def create_coord_arrays(nlong, nlat, dx, dy):
-        """Returns to WRF coordinate arrays with the Lambert Conformal Conic coordinates: xcoord, ycoord"""
-
-        # The relative coordinates are simply the dx and dy times the index of the of the row counter
-        long_middle = nlong / 2 - 1
-        lat_middle = nlat / 2 - 1
-        x_coord_arr = numpy.zeros([nlat, nlong], numpy.float)
-        y_coord_arr = numpy.zeros([nlat, nlong], numpy.float)
-        for j in range(nlat):
-            for i in range(nlong):
-                x_coord_arr[j, i] = (i - long_middle)*dx
-                y_coord_arr[j, i] = (j - lat_middle)*dy
-
-        return x_coord_arr, y_coord_arr
-
     def insert_variable(self, ncfile, var_name, table_name, domain_key=None, replace_data=False, sql_where="true",
                         file_type='windb2', mask=None):
         """Inserts a netCDF file with WinDB2 or WRF output into a WinDB2 database.
