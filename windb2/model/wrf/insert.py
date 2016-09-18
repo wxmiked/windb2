@@ -55,7 +55,7 @@ class InsertWRF(Insert):
             raise TypeError('Unsupported file file_type: {}'.format(file_type))
 
         # Open the WinDB netCDF file
-        logger.debug('netCDF file file_type passed to wrf.insertNcFile=', type(ncfile))
+        logger.debug('netCDF file file_type passed to wrf.insertNcFile={}'.format(type(ncfile)))
         if type(ncfile) != Dataset:
             ncfile = Dataset(ncfile, 'r')
 
