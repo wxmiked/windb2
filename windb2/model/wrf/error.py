@@ -53,7 +53,7 @@ def findBuoysInProximityToWRFPoints(wrfDomainNum, curs):
 
     # Add the results to the array to return
     closestWRFPointsToBuoys.append([temp[0], buoykey[1], buoykey[0], temp[1]])
-    
+
   return closestWRFPointsToBuoys
    
 def findWRFPointInProximityToBuoy(buoyDomainKey, wrfDomainNum, curs):
@@ -65,7 +65,7 @@ def findWRFPointInProximityToBuoy(buoyDomainKey, wrfDomainNum, curs):
   closestBuoyPointToBuoys = []
 
   # Find the closest wrfgeom to the buoygeom, putting a limit of twice the resolution
-  sql = "SELECT m.key AS wrfkey, st_st_distance_sphere(st_transform(m.geom,4326), st_transform(b.geom,4326)) AS dist \
+  sql = "SELECT m.key AS wrfkey, st_distance_sphere(st_transform(m.geom,4326), st_transform(b.geom,4326)) AS dist \
                     FROM (SELECT * FROM horizgeom WHERE domainkey=" + str(buoyDomainKey) + ") b, \
                          (SELECT * FROM horizgeom WHERE domainkey=" + str(wrfDomainNum) + ") m \
                         ORDER BY dist LIMIT 1"
