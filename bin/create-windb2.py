@@ -120,7 +120,7 @@ for sql in ['Domain.sql', 'HorizGeom.sql', 'GeoVariable.sql']:
 
 # Enable utilities
 os.chdir(script_dir + '/../schema/util')
-for sql in ['UV.sql', 'NGE.sql', 'MSE.sql', 'NB.sql', 'Bias.sql', 'DATE_ROUND.sql']:
+for sql in ['UV.sql', 'NGE.sql', 'MSE.sql', 'NB.sql', 'Bias.sql', 'DATE_ROUND.sql', 'WINDDIR.sql']:
     windb.curs.execute(open(sql, 'r').read())
 
 # Enable validation
