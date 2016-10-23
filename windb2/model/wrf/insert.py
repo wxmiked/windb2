@@ -199,7 +199,9 @@ class InsertWRF(Insert):
                             self.windb2.conn.rollback()
 
                             # Delete that timeArr (assumes UTC timeArr zone)
-                            sql = 'DELETE FROM ' +  table_name + '_' + domain_key + ' WHERE t = timestamp with time zone\'' +  t.strftime('%Y-%m-%d %H:%M:%S %Z') + '\''
+                            sql = 'DELETE FROM ' +  table_name + '_' + domain_key + \
+                                  ' WHERE t = timestamp with time zone\'' + t.strftime('%Y-%m-%d %H:%M:%S %Z') + '\' ' + \
+                                  'AND height=' + str(h)
                             print("Deleting conflicting times: " + sql)
                             self.windb2.curs.execute(sql)
                             self.windb2.conn.commit()

@@ -149,7 +149,9 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
                     windb2_conn.conn.rollback()
 
                     # Delete that timeArr (assumes UTC timeArr zone)
-                    sql = 'DELETE FROM ' +  tableName + '_' + domainKey + ' WHERE t = timestamp with time zone\'' +  tti.strftime('%Y-%m-%d %H:%M:%S %Z') + '\''
+                    sql = 'DELETE FROM ' +  tableName + '_' + domainKey + ' WHERE t = timestamp with time zone\'' + \
+                          tti.strftime('%Y-%m-%d %H:%M:%S %Z') + '\' ' + \
+                          'AND height=0'
                     print("Deleting conflicting times: " + sql)
                     windb2_conn.curs.execute(sql)
                     windb2_conn.conn.commit()
