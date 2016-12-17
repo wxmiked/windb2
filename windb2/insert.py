@@ -347,7 +347,7 @@ class Insert(object):
             replace_data: Delete and reinsert data that overlaps"""
 
         # See if this domain data name already exists
-        domain_key = self.windb2.findDomainForDataName(self.windb2.curs, data_name)
+        domain_key = self.windb2.findDomainForDataName(data_name)
 
         # Try and get the domain key result. If no key was returned, we need to make new domain and windspeed tables
         newDomain = False

@@ -64,19 +64,19 @@ class WinDB2:
         conn.commit()
     
     
-    def findDomainForDataName(self, curs, dataName):
+    def findDomainForDataName(self, dataName):
         """Checks for the existence of the 'data name' in the database. Returns None if that name is not found and or the domain key 
         otherwise."""
         
         # Make sure a 'dataName' table does not already exist, get the key if it does
         sql = "SELECT key FROM domain WHERE name='" + dataName + "'"
         try:
-            curs.execute(sql)
+            self.curs.execute(sql)
         except psycopg2.InternalError as detail:
             print("Query to determine if domain exists failed: ", detail)
 
         # Return the domain, otherwise None if no domain existed
-        domain_key = curs.fetchone()
+        domain_key = self.curs.fetchone()
         if domain_key is None:
             return None
         else:
