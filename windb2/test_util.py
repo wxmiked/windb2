@@ -1,6 +1,6 @@
 import unittest
 import numpy
-import util
+import windb2.util as util
 
 
 class TestUtil(unittest.TestCase):
@@ -42,3 +42,12 @@ class TestUtil(unittest.TestCase):
 
         # Fourth quadrant
         self.assertEqual(util.calc_dir_deg(-3, 3), 315)
+
+    def testGetDegFromCardinal(self):
+
+        # Valid case
+        self.assertEquals(util.get_deg_from_cardinal('NE'), 45)
+
+        # Invalid key
+        with self.assertRaises(KeyError):
+            util.get_deg_from_cardinal('blah')
