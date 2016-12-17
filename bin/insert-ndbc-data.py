@@ -6,7 +6,7 @@
 # mike@sailorsenergy.com
 #
 # Created: 2008-10-28
-# Modified: 2015-12-24
+# Modified: 2016-11-14
 #
 #
 # Description: Inserts NDBC buoy data into a PostgreSQL wind database.

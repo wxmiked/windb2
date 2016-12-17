@@ -101,14 +101,15 @@ class Insert(object):
         sql = 'CREATE TABLE buffered_mask_{}(key SERIAL)'.format(domain_key)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
-        sql = "SELECT AddGeometryColumn('buffered_mask_{}', 'geom', {}, 'POLYGON', 2, false)".format(domain_key, data_srid)
+        sql = "SELECT AddGeometryColumn('buffered_mask_{}', 'geom', {}, 'POLYGON', 2, false)".format(domain_key, 3857)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
-        sql = 'ALTER TABLE buffered_mask_{} DROP CONSTRAINT enforce_srid_geom'.format(domain_key)
+        # Do the following to allow both ST_Polygon and ST_MultiPolygon types to be inserted
+        sql = 'ALTER TABLE buffered_mask_{} DROP CONSTRAINT enforce_geotype_geom'.format(domain_key)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         sql = 'INSERT INTO buffered_mask_{} (geom) ' \
-              'SELECT ST_Buffer(ST_Transform(geom, {}), {}) AS geom FROM {}'.format(domain_key, data_srid, res_m, mask)
+              'SELECT ST_Buffer(ST_Transform(geom, {}), {}) AS geom FROM {}'.format(domain_key, 3857, res_m, mask)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
