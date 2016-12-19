@@ -42,9 +42,11 @@ parser.add_argument("-o", "--overwrite", help="Replace data if the data for the 
                     action="store_true")
 parser.add_argument("-m", "--mask", help="Name of a 2D PostGIS polygon table in the WinDB2 to be use for a mask.")
 parser.add_argument('-p', '--port', type=int, default='5432', help='Port for WinDB2 connection')
+parser.add_argument('-z', '--zero_seconds', action='store_true',
+                    help='Always set WRF time seconds to zero (stops WRF time creep)')
 group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("-d", "--domain_key", type=str, help="Existing domain key in the WinDB")
-group.add_argument("-n", "--new", action="store_false")
+group.add_argument("-d", "--domain_key", type=str, help="Existing domain key in the WinDB2")
+group.add_argument("-n", "--new", action="store_false", help="Create a new WinDB2 domain")
 args = parser.parse_args()
 
 # Connect to the WinDB
@@ -67,7 +69,7 @@ ncfile = Dataset(ncfile_cleansed, 'r')
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
 try:
     inserter.insert_variable(ncfile, 'WIND', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
-                             mask=args.mask)
+                             mask=args.mask, zero_seconds=args.zero_seconds)
 except configparser.NoSectionError:
     msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
     print(msg)

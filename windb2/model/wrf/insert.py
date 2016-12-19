@@ -31,7 +31,7 @@ class InsertWRF(Insert):
         self.loggerSQL = logging.getLogger('windb2')
 
     def insert_variable(self, ncfile, var_name, table_name, domain_key=None, replace_data=False, sql_where="true",
-                        file_type='windb2', mask=None):
+                        file_type='windb2', mask=None, zero_seconds=False):
         """Inserts a netCDF file with WinDB2 or WRF output into a WinDB2 database.
        *
        * windb2Conn - Connection to a WinDB2 database.
@@ -124,6 +124,10 @@ class InsertWRF(Insert):
 
             # Create a datetime from the WRF string
             t = datetime.strptime(t.decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
+
+            # Zero the seconds if asked to
+            if zero_seconds:
+                t = t.replace(second=0)
 
             # Create the time in GeoServer/GeoWebCache format
             timeValuesToReturn.append(t.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
