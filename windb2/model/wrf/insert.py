@@ -135,7 +135,7 @@ class InsertWRF(Insert):
             # Info
             print('Processing time: ', timeValuesToReturn[-1])
 
-            # Iterate through the x,y, and timeArr and insert the WRF variable
+            # Iterate through the x,y, and timearr and insert the WRF variable
             for h in self.config.get_float_list('WINDB2', 'heights'):
 
                 # We actually need the index of the height, not the actual height itself
@@ -202,7 +202,7 @@ class InsertWRF(Insert):
                             # Rollback to the last commit (necessary to reset the database connection)
                             self.windb2.conn.rollback()
 
-                            # Delete that timeArr (assumes UTC timeArr zone)
+                            # Delete that timearr (assumes UTC timearr zone)
                             sql = 'DELETE FROM ' +  table_name + '_' + domain_key + \
                                   ' WHERE t = timestamp with time zone\'' + t.strftime('%Y-%m-%d %H:%M:%S %Z') + '\' ' + \
                                   'AND height=' + str(h)
@@ -210,7 +210,7 @@ class InsertWRF(Insert):
                             self.windb2.curs.execute(sql)
                             self.windb2.conn.commit()
 
-                            # Reinsert that timeArr
+                            # Reinsert that timearr
                             self.windb2.curs.copy_from(open(tempFile.name, 'r'), table_name + '_' + domain_key, sep=',', columns=insertColumns)
 
                             # No need to commit again, go on to the next height

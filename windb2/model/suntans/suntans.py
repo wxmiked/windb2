@@ -75,7 +75,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
     counter = 0
     startTime = datetime.now()
 
-    # Pass the timeArr through the timeArr filter, even if no filter is set to return Postres
+    # Pass the timearr through the timearr filter, even if no filter is set to return Postres
     # compliant timestamps. See Python datetime.datetime for datetime format details
     timesToInsert = windb2_conn.filterTimes(timeArr, '%Y-%m-%d_%H:%M:%S', sqlWhere=sqlWhere)
 
@@ -105,7 +105,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
         # Info
         print('Processing time: ', timeValuesToReturn[-1])
 
-        # Iterate through the x,y, and timeArr and insert the tidal current data
+        # Iterate through the x,y, and timearr and insert the tidal current data
         for x in range(horizGeomKey.shape[0]):
             for y in range(horizGeomKey.shape[1]):
 
@@ -148,7 +148,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
                     # Rollback to the last commit (necessary to reset the database connection)
                     windb2_conn.conn.rollback()
 
-                    # Delete that timeArr (assumes UTC timeArr zone)
+                    # Delete that timearr (assumes UTC timearr zone)
                     sql = 'DELETE FROM ' +  tableName + '_' + domainKey + ' WHERE t = timestamp with time zone\'' + \
                           tti.strftime('%Y-%m-%d %H:%M:%S %Z') + '\' ' + \
                           'AND height=0'
@@ -156,7 +156,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
                     windb2_conn.curs.execute(sql)
                     windb2_conn.conn.commit()
 
-                    # Reinsert that timeArr
+                    # Reinsert that timearr
                     windb2_conn.curs.copy_from(open(temp_file.name, 'r'), tableName + '_' + domainKey, sep=',', columns=insertColumns)
 
                 # Otherwise, just notify that the insert failed because of duplicate data

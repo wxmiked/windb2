@@ -155,3 +155,14 @@ class WinDB2:
             return list(timeReturnArray[:,0])
         else:
             return []
+
+    def geomExists(self, domain, longitude, latitude):
+        """Checks to see if the point exists. Returns the geomkey if true and false if not."""
+
+        sql = "SELECT key FROM horizgeom WHERE ST_X(geom)=longitude AND ST_Y(geom)=latitude LIMIT 1"
+        self.curs.execute(sql)
+        result = self.curs.fetchone()
+        if result is None:
+            return False
+        else:
+            return result[0]

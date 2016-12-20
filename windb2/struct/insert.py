@@ -124,3 +124,108 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     # Commit these changes
     windb2.conn.commit()
 
+def insertGeoVariable(windb2, dataName, dataCreator, variableList, longitude=0, latitude=0, resolution=0):
+    """Inserts a list of Variables into the given database.
+
+    windb2, WinDB2 instantiation
+    dataName, string like 'MERRA2'
+    dataCreator, string like 'NASA'
+    variableList, list of struct.Variable objects
+    longitude, longitude of point, 0 by default
+    latitude, latitude of a point, 0 by default"""
+
+    # See if this domain data name already exists
+    domainKey = windb2.findDomainForDataName(dataName)
+
+    # Try and get the domain key result. If no key was returned, we need to make new domain and windspeed tables
+    newDomain = False
+    if not domainKey:
+        newDomain = True
+
+    # Create a new table if we need to
+    if domainKey == None:
+
+        # Insert the name into the domain table which returns the new key
+        sql = "INSERT INTO domain(name, resolution, units, datasource) VALUES ('{}, {}, {}') RETURNING key"\
+            .format(dataName, resolution, dataCreator)
+        try:
+            windb2.curs.execute(sql)
+        except psycopg2.ProgrammingError as detail:
+            print
+            "Inserting a new domain domain failed. Exiting..."
+            print
+            detail
+            sys.exit(-1)
+
+        # Get the domain key
+        domainKey = windb2.curs.fetchone()[0]
+
+        # Create a new windspeed table
+        sql = "CREATE TABLE {}_{} () INHERITS(geovariable)".format(variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print
+            detail
+
+        # Add a column for the value
+        sql = "ALTER TABLE {}_{} () ADD COLUMN value real".format(variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print
+            detail
+
+        # Add in the unique constraint because this is not inherited from parent
+        sql = "ALTER TABLE {}_{} " \
+              "ADD CONSTRAINT {}_{}_domainkey_geomkey_t_height_key UNIQUE (domainkey, geomkey, t, height)"\
+            .format(variableList[0].name, domainKey, variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print
+            detail
+
+        # Add a 2D point for the made up location of the
+        sql = "INSERT INTO horizwindgeom(domainkey, x, y, geom) \
+               VALUES ({},0,0, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
+            .format(domainKey, longitude, latitude)
+        windb2.curs.execute(sql)
+        geomKey = windb2.curs.fetchone()
+
+        # Commit all of these additions
+        windb2.conn.commit()
+
+    # Otherwise, check to see if there already exists a geomkey with the same coordinates
+    elif longitude != 0 and latitude != 0:
+
+        # Get the geomkey for the location
+        sql = "SELECT key FROM horizgeom \
+               WHERE st_distance_sphere(geom, st_geomfromtext('POINT({} {})',4326))=0 AND \
+                     domainkey={} LIMIT 1".format(longitude, latitude, domainKey)
+        windb2.curs.execute(sql)
+        geomKey = windb2.curs.fetchone()
+
+    # Otherwise, this is an ideal domain and there is not geom
+    else:
+        geomKey = 0
+
+    # Insert all of the data
+    execList = []
+    for data in variableList:
+
+        # Data to append
+        dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'speed': data.speed,
+                        'direction': data.direction, 'height': data.height}
+        execList.append(dataToAppend)
+
+    try:
+        windb2.curs.executemany(sql, execList)
+    except psycopg2.DataError as detail:
+        print("DataError while inserting the large list wind speed: ", detail)
+        "Exiting..."
+        sys.exit(-1)
+
+    # Commit these changes
+    windb2.conn.commit()
+

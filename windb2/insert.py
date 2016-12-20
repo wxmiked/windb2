@@ -452,13 +452,13 @@ class Insert(object):
                     # Rollback to the last commit (necessary to reset the database connection)
                     self.windb2.conn.rollback()
 
-                    # Delete that timeArr (assumes UTC timeArr zone)
+                    # Delete that timearr (assumes UTC timearr zone)
                     sql = 'DELETE FROM {} WHERE t = timestamp with time zone\'{}\''.format(table_name, data.time.strftime('%Y-%m-%d %H:%M:%S %Z'))
                     print("Deleting conflicting times: " + sql)
                     self.windb2.curs.execute(sql)
                     self.windb2.conn.commit()
 
-                    # Reinsert that timeArr
+                    # Reinsert that timearr
                     self.windb2.curs.copy_from(open(tempFile.name, 'r'), table_name, sep=',', columns=insertColumns)
 
                 # Otherwise, just notify that the insert failed because of duplicate data. We do re-raise this error
