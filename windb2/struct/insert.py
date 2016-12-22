@@ -158,13 +158,6 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
         # Get the domain key
         domainKey = windb2.curs.fetchone()[0]
 
-        # Add a 2D point for the made up location of the
-        sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
-               VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
-            .format(domainKey, x or None, y or None, longitude, latitude)
-        windb2.curs.execute(sql)
-        geomKey = windb2.curs.fetchone()
-
         # Commit all of these additions
         windb2.conn.commit()
 
@@ -211,6 +204,17 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
         except Exception as detail:
             print(detail)
 
+    # Add a 2D point if necessary
+    sql = "SELECT key FROM horizgeom WHERE x={} AND y={} AND st_transform(geom,4326)=st_geomfromtext('POINT({} {})',4326)"\
+        .format(x, y, longitude, latitude)
+    windb2.curs.execute(sql)
+    geomKey = windb2.curs.fetchone()[0]
+    if geomKey is None:
+        sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
+               VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
+            .format(domainKey, x or None, y or None, longitude, latitude)
+        windb2.curs.execute(sql)
+        geomKey = windb2.curs.fetchone()
 
     # Insert all of the data
     execList = []
