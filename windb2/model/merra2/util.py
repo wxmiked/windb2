@@ -3,20 +3,27 @@ import numpy as np
 _merra2_long_res = 0.625
 _merra2_lat_res = 0.5
 
-def get_surrounding_merra2_nodes(long, lat):
-    """Returns the four surrounding MERRA2 nodes for the given coordinate"""
+def get_surrounding_merra2_nodes(long, lat, grid=False):
+    """
+    Calculates four surrounding MERRA2 nodes for the given coordinate.
+
+    Returns a string of long for ncks, string of long for ncks
+    """
 
     # MERRA2 specs
     deltaLong = 0.625
     deltaLat = 0.5
 
     # Closest points
-    leftLong = int(long/deltaLong)
-    rightLong = leftLong + 1
-    bottonLat = int(lat/deltaLat)
-    topLat = bottonLat + 1
+    leftLong = long - ((long*1000)%(deltaLong*1000))/1000
+    rightLong = leftLong + deltaLong
+    bottonLat = lat - ((lat*100)%(deltaLat*100))/100
+    topLat = bottonLat + deltaLat
 
-    x, y = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
+    longGrid, latGrid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
+
+    return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
+
 
 def download_all_merra2(windb2, long, lat, vars, dryRun=False):
     """Checks the inventory and downloads all MERRA2 for a given coordinate"""
@@ -78,10 +85,81 @@ def download_all_merra2(windb2, long, lat, vars, dryRun=False):
 
             # Generatet the ncks command to run
             url = 'http://goldsmr4.gesdisc.eosdis.nasa.gov/dods/M2T1NXSLV'
-            cmd = 'ncks -O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{}-{}.nc' \
+            cmd = '/usr/bin/ncks'
+            args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{}-{}.nc' \
                 .format(vars, index_start, index_stop, long, lat, url, long, lat, index_start, index_stop)
             if dryRun:
-                print(cmd)
+                print(cmd, ' ', args)
+            else:
+                import subprocess
+                print('Running: {} {}'.format(cmd, args))
+                subprocess.call(cmd + ' ' + args, shell=True, cwd='/data/tmp')
 
             start_t_incl += timedelta(days=chunk_size_days)
+
+def insert_merra2_file(windb2conn, ncfile, vars):
+    """Inserts a MERRA2 file downloaded using ncks
+
+    ncfile: netCDF file downloaded with ncks
+    vars: CSV list of MERRA2 variables (e.g. u50m,v50m,ps)
+    """
+    from netCDF4 import Dataset, num2date
+    import re
+    from windb2.struct import geovariable, insert
+
+    # Open the netCDF file
+    ncfile = Dataset(ncfile, 'r')
+    # Get the times
+    timevar = ncfile.variables['time']
+    timearr = num2date(timevar[:], units=timevar.units)
+    # Get the coordinates
+    longitudearr = ncfile.variables['lon'][:]
+    latitudearr = ncfile.variables['lat'][:]
+    # For each variable...
+    for var in vars.split(','):
+
+        # Break up the variable name
+        var_re = re.match(r'([a-z]+)([0-9]*)([a-z]*)[,]*', var)
+
+        # For each long
+        longcount = 0
+        longarr = ncfile.variables['lon']
+        for long in longarr:
+
+            # For each lat
+            latcount = 0
+            latarr = ncfile.variables['lat']
+            for lat in latarr:
+
+                # For each time in the variable
+                tcount = 0
+                varstoinsert = []
+                for t in timearr:
+
+                    # Clean up the seconds because every other time has a residual
+                    t = t.replace(microsecond=0)
+
+                    # Figure out the height
+                    if var_re.group(2) is not None:
+                        height = var_re.group(2)
+                    else:
+                        height = -9999
+
+                    v = geovariable.GeoVariable(var, t, height,
+                                                ncfile.variables[var_re.group(0)][tcount, latcount, longcount])
+                    varstoinsert.append(v)
+
+                    # Increment t
+                    tcount += 1
+
+            # Insert the data
+            insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert, long, lat)
+
+            # Increment lat
+            latcount += 1
+
+        # Increment long
+        longcount += 1
+
+
 
