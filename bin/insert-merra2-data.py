@@ -11,6 +11,7 @@
 #
 # Description: Inserts a hourly MERRA2 netCDF file into a WinDB2
 #
+
 import os
 import sys
 
@@ -23,17 +24,21 @@ from windb2 import windb2
 from windb2.struct import geovariable, insert
 from netCDF4 import Dataset, num2date
 import re
+from datetime import datetime, timedelta
+
 
 # Logging
 logging.basicConfig(level=logging.WARNING)
 
 # Parse the arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("dbHost", type=str, help="Hostname of WinDB")
-parser.add_argument("dbUser", type=str, help="User of WinDB")
-parser.add_argument("dbName", type=str, help="Database name of WinDB")
-parser.add_argument("vars", type=str, help="CSV list of MERRA2 variable names e.g. \"u50m,v50m\"")
-parser.add_argument("ncFile", type=str, help="MERRA2 netCDF file")
+parser.add_argument('dbHost', type=str, help='Hostname of WinDB')
+parser.add_argument('dbUser', type=str, help='User of WinDB')
+parser.add_argument('dbName', type=str, help='Database name of WinDB')
+parser.add_argument('vars', type=str, help="CSV list of MERRA2 variable names e.g. 'u50m,v50m'")
+parser.add_argument('long', type=float, help='Longitude to download')
+parser.add_argument('lat', type=float, help='Latitude to download')
+parser.add_argument('ncFile', type=str, help='MERRA2 netCDF file')
 args = parser.parse_args()
 
 # Open the netCDF file
