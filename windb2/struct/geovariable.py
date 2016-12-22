@@ -15,7 +15,8 @@ class GeoVariable(object):
 
     """Creates a new FlowData object"""
 
-    def __init__(self, time, height, val, units="unset"):
+    def __init__(self, name, time, height, val, units="unset"):
+        self.name = name
         self.time = time
         self.height = float(height)
         self.val = float(val)

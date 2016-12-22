@@ -11,16 +11,16 @@
 #
 # Description: Inserts a hourly MERRA2 netCDF file into a WinDB2
 #
+import os
+import sys
 
+dir = os.path.dirname(__file__)
+sys.path.append(os.path.join(dir, '../'))
 
 import logging
-import time
-import sys
-import numpy
 import argparse
 from windb2 import windb2
-from windb2.struct.geovariable import GeoVariable
-from datetime import datetime, timedelta
+from windb2.struct import geovariable, insert
 from netCDF4 import Dataset, num2date
 import re
 
@@ -47,118 +47,54 @@ timearr = num2date(timevar[:], units=timevar.units)
 longitudearr = ncfile.variables['lon'][:]
 latitudearr = ncfile.variables['lat'][:]
 
-# # Get the variables to read
-# varsToInsert = []
-# for var in re.findall('([a-z]+)([0-9]*)([a-z]*)',args.vars):
-#
+# Open the WinDB2
+windb2conn = windb2.WinDB2(args.dbHost, args.dbName, args.dbUser)
+windb2conn.connect()
+
+# For each variable...
+for var in args.vars.split(','):
+
+    # Break up the variable name
+    var_re = re.match(r'([a-z]+)([0-9]*)([a-z]*)[,]*', var)
+
+    # For each long
+    longcount = 0
+    longarr = ncfile.variables['lon']
+    for long in longarr:
+
+        # For each lat
+        latcount = 0
+        latarr = ncfile.variables['lat']
+        for lat in latarr:
+
+            # For each time in the variable
+            tcount = 0
+            varstoinsert = []
+            for t in timearr:
+
+                # Clean up the seconds because every other time has a residual
+                t = t.replace(microsecond=0)
+
+                # Figure out the height
+                if var_re.group(2) is not None:
+                    height = var_re.group(2)
+                else:
+                    height = -9999
+
+                v = geovariable.GeoVariable(var, t, height,
+                                            ncfile.variables[var_re.group(0)][tcount, latcount, longcount])
+                varstoinsert.append(v)
+
+                # Increment t
+                tcount += 1
+
+        # Insert the data
+        insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert, long, lat)
+
+        # Increment lat
+        latcount += 1
+
+    # Increment long
+    longcount += 1
 
 
-
-
-# Open the WinDB
-curs, conn = windb2.connect(args.dbHost, args.dbName, args.dbUser)
-
-# Iterate through all the dates
-currDate = args.dateStartIncl
-u50m = {}
-v50m = {}
-while currDate <= args.dateEndIncl:
-
-    # Info
-    print(currDate.date())
-
-    # Date specific format
-    urlEnd = currDate.strftime('%Y/%m/MERRA' + merraStreamNumber(currDate) + '.prod.assim.tavg1_2d_slv_Nx.%Y%m%d.hdf')
-
-    try:
-        logging.debug('Downloading: ' + urlStart + urlEnd)
-        dataset = pydap.client.open_url(urlStart + urlEnd)
-    except pydap.exceptions.ServerError:
-        logging.error("Invalid URL: " + urlStart + urlEnd)
-        sys.exit(-2)
-    except Exception: # See if we've overloaded the server and if waiting helps
-        logging.error('Caught exception probably from NASA. Waiting 3 minutes before continuing...')
-        time.sleep(180)
-        dataset = pydap.client.open_url(urlStart + urlEnd)
-
-
-    # Get the long/lat coords for the first use
-    if currDate == args.dateStartIncl:
-
-        # Download the coordinates
-        longitude = dataset['XDim_EOS']
-        latitude = dataset['YDim_EOS']
-
-        longitudeIndex = numpy.argwhere(numpy.around(longitude, 3) == numpy.around(args.longitude, 3))[0, 0]
-        latitudeIndex = numpy.argwhere(numpy.around(latitude, 3) == numpy.around(args.latitude, 3))[0, 0]
-
-        # Debug
-        logging.debug('Found coordinate: (longIndex, latIndex) = (' + str(longitudeIndex) + ',' + str(latitudeIndex) + ')')
-        logging.debug('Found coordinate: (long, lat) = (' + str(longitude[longitudeIndex][0]) + ',' + str(latitude[latitudeIndex][0]) + ')')
-
-        # Make sure that the coordinates are valid
-        if longitudeIndex.shape == (0, 1) or latitudeIndex.shape == (0, 1):
-            logging.error('Coordinate that you gave do not exist in the MERRA dataset.')
-            logging.error('Coordinate: (long, lat) = (' + str(args.longitude) + ',' + str(args.latitude) + ')')
-            sys.exit(-3)
-
-    # Download the 50 m wind data for those points. Sometimes this fails because the NASA server is overloaded, so retry
-    # up to three times before moving on.
-    try:
-        u50m[currDate] = dataset.U50M[:, latitudeIndex, longitudeIndex]
-    except Exception:
-        try:
-            u50m[currDate] = dataset.U50M[:, latitudeIndex, longitudeIndex]
-            logging.warning('Exception trying to download U50M, retrying...')
-        except Exception:
-            try:
-                u50m[currDate] = dataset.U50M[:, latitudeIndex, longitudeIndex]
-                logging.warning('Exception trying to download U50M, retrying...')
-            except Exception:
-                try:
-                    u50m[currDate] = dataset.U50M[:, latitudeIndex, longitudeIndex]
-                    logging.warning('Exception trying to download U50M, retrying...')
-                except Exception:
-                    logging.warning('Download failed for: ' + str(currDate.date()))
-                    continue
-    try:
-        v50m[currDate] = dataset.V50M[:, latitudeIndex, longitudeIndex]
-    except Exception:
-        try:
-            v50m[currDate] = dataset.V50M[:, latitudeIndex, longitudeIndex]
-            logging.warning('Exception trying to download V50M, retrying...')
-        except Exception:
-            try:
-                v50m[currDate] = dataset.V50M[:, latitudeIndex, longitudeIndex]
-                logging.warning('Exception trying to download V50M, retrying...')
-            except Exception:
-                try:
-                    v50m[currDate] = dataset.V50M[:, latitudeIndex, longitudeIndex]
-                    logging.warning('Exception trying to download V50M, retrying...')
-                except Exception:
-                    logging.warning('Download failed for: ' + str(currDate.date()))
-                    continue
-
-    # Make sure that U and V wind arrays are the same size
-    assert u50m[currDate].shape == v50m[currDate].shape
-
-    # Debug
-    logging.debug('numpy.average(u50m[currDate]) = ' + str(numpy.average(u50m[currDate])))
-    logging.debug('numpy.average(v50m[currDate]) = ' + str(numpy.average(v50m[currDate])))
-
-    # Create new WindData objects to insert
-    windData = []
-    timeCount = 0
-    for u, v in zip(u50m[currDate], v50m[currDate]):
-        currTime = currDate + timedelta(minutes=30) + timeCount*timedelta(minutes=60)
-        windData.append(WindData(currTime, 50,
-                        numpy.sqrt(numpy.power(u[0, 0], 2) + numpy.power(v[0, 0], 2)),
-                        WindData.calcDirDeg(u[0, 0], v[0, 0])))
-        timeCount += 1
-
-    # Insert the date into the WinDB
-    windb.insertWindData(curs, conn, 'MERRA ' + str(args.longitude) + ' ' + str(args.latitude),
-                         'NASA', windData, longitude=args.longitude, latitude=args.latitude)
-
-    # Go on to the next date
-    currDate += timedelta(days=1)

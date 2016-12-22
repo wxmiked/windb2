@@ -124,7 +124,7 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     # Commit these changes
     windb2.conn.commit()
 
-def insertGeoVariable(windb2, dataName, dataCreator, variableList, longitude=0, latitude=0, resolution=0):
+def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, longitude=0, latitude=0, resolution=0):
     """Inserts a list of Variables into the given database.
 
     windb2, WinDB2 instantiation
@@ -139,57 +139,29 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, longitude=0, 
 
     # Try and get the domain key result. If no key was returned, we need to make new domain and windspeed tables
     newDomain = False
-    if not domainKey:
+    if domainKey is None:
         newDomain = True
 
     # Create a new table if we need to
-    if domainKey == None:
+    if domainKey is None:
 
         # Insert the name into the domain table which returns the new key
-        sql = "INSERT INTO domain(name, resolution, units, datasource) VALUES ('{}, {}, {}') RETURNING key"\
-            .format(dataName, resolution, dataCreator)
+        sql = "INSERT INTO domain(name, resolution, units, datasource) VALUES ('{}', '{}', '{}', '{}') RETURNING key"\
+            .format(dataName, resolution, variableList[0].units, dataCreator)
         try:
             windb2.curs.execute(sql)
         except psycopg2.ProgrammingError as detail:
-            print
-            "Inserting a new domain domain failed. Exiting..."
-            print
-            detail
+            print("Inserting a new domain domain failed. Exiting...")
+            print(detail)
             sys.exit(-1)
 
         # Get the domain key
         domainKey = windb2.curs.fetchone()[0]
 
-        # Create a new windspeed table
-        sql = "CREATE TABLE {}_{} () INHERITS(geovariable)".format(variableList[0].name, domainKey)
-        try:
-            windb2.curs.execute(sql)
-        except Exception as detail:
-            print
-            detail
-
-        # Add a column for the value
-        sql = "ALTER TABLE {}_{} () ADD COLUMN value real".format(variableList[0].name, domainKey)
-        try:
-            windb2.curs.execute(sql)
-        except Exception as detail:
-            print
-            detail
-
-        # Add in the unique constraint because this is not inherited from parent
-        sql = "ALTER TABLE {}_{} " \
-              "ADD CONSTRAINT {}_{}_domainkey_geomkey_t_height_key UNIQUE (domainkey, geomkey, t, height)"\
-            .format(variableList[0].name, domainKey, variableList[0].name, domainKey)
-        try:
-            windb2.curs.execute(sql)
-        except Exception as detail:
-            print
-            detail
-
         # Add a 2D point for the made up location of the
-        sql = "INSERT INTO horizwindgeom(domainkey, x, y, geom) \
-               VALUES ({},0,0, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
-            .format(domainKey, longitude, latitude)
+        sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
+               VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
+            .format(domainKey, x or None, y or None, longitude, latitude)
         windb2.curs.execute(sql)
         geomKey = windb2.curs.fetchone()
 
@@ -210,13 +182,45 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, longitude=0, 
     else:
         geomKey = 0
 
+    # Create a new geovariable table if it doesn't exist
+    sql = "SELECT exists(SELECT * FROM information_schema.tables WHERE table_name='{}_{}')"\
+        .format(variableList[0].name, domainKey)
+    windb2.curs.execute(sql)
+    if not windb2.curs.fetchone()[0]:
+        sql = "CREATE TABLE {}_{} () INHERITS(geovariable)".format(variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print(detail)
+            sys.exit(-1)
+
+        # Add a column for the value
+        sql = "ALTER TABLE {}_{} ADD COLUMN value real".format(variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print(detail)
+            sys.exit(-1)
+
+        # Add in the unique constraint because this is not inherited from parent
+        sql = "ALTER TABLE {}_{} " \
+              "ADD CONSTRAINT {}_{}_domainkey_geomkey_t_height_key UNIQUE (domainkey, geomkey, t, height)"\
+            .format(variableList[0].name, domainKey, variableList[0].name, domainKey)
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print(detail)
+
+
     # Insert all of the data
     execList = []
+    sql = """INSERT INTO {}_{} (domainkey, geomkey, t, height, value)
+           VALUES (%(domainkey)s, %(geomkey)s, %(t)s, %(height)s, %(value)s)"""\
+        .format(variableList[0].name, domainKey)
     for data in variableList:
 
         # Data to append
-        dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'speed': data.speed,
-                        'direction': data.direction, 'height': data.height}
+        dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'height': data.height, 'value': data.val}
         execList.append(dataToAppend)
 
     try:
