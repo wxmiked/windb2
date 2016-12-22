@@ -12,6 +12,7 @@ class TestUtil(unittest.TestCase):
 
     def testSurround(self):
         self.assertEqual(util.get_surrounding_merra2_nodes(62.73, 38.21), ('62.5,63.125', '38.0,38.5'))
+        self.assertEqual(util.get_surrounding_merra2_nodes(63.125, 38.0), ('63.125', '38.0'))
 
     def testDownload(self):
         util.download_all_merra2(self.db, 90.625, -45.5, 'u50m,v50m', dryRun=True)

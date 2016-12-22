@@ -22,22 +22,19 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
 
     longGrid, latGrid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
 
-    return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
+    if (leftLong*1000)%(deltaLong*1000) == 0 and (lat*100)%(deltaLat*100) == 0:
+        return '{}'.format(long), '{}'.format(lat)
+    else:
+        return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
 
 
-def download_all_merra2(windb2, long, lat, vars, dryRun=False):
+def download_all_merra2(windb2, long, lat, variables, dryRun=False):
     """Checks the inventory and downloads all MERRA2 for a given coordinate"""
     from datetime import datetime, timedelta
-    import calendar
     import pytz
 
-    # Make sure these are valid points
-    if round(long*1000) % _merra2_long_res*1000 != 0:
-        raise ValueError('MERRA2 longitude not valid: {}'.format(long))
-        sys.exit(-1)
-    if round(lat * 1000) % _merra2_lat_res*1000 != 0:
-        raise ValueError('MERRA2 latitude not valid: {}'.format(lat))
-        sys.exit(-1)
+    # Get the surrounding nodes
+    longSurround, latSurround = get_surrounding_merra2_nodes(long, lat)
 
     # MERRA2 data is updated around the 15th of the month
     merra2_start_incl = datetime(1980, 1, 1, 0, 0, 0).replace(tzinfo=pytz.utc)
@@ -54,13 +51,18 @@ def download_all_merra2(windb2, long, lat, vars, dryRun=False):
 
     # If there's nothing in the database, then we need to get everything
     missing_data = False
-    for var in vars.split(','):
-        sql = "SELECT min(t), max(t) FROM {}_{}".format(var, domainkey)
-        windb2.curs.execute(sql)
-        existing_t_range = windb2.curs.fetchone()
-        if existing_t_range[0] is None and existing_t_range[1] is None:
-            missing_data = True
-            break
+    # TODO this needs to be implemented in a smart way, just downloading everything for now
+    missing_data = True
+    # for var in variables.split(','):
+    #     sql = """SELECT min(t), max(t)
+    #              FROM {}_{}
+    #              WHERE domainkey=(SELECT key FROM horizgeom WHERE st_transform(geom,4326)=st_geomfromtext('POINT({} {})',4326))"""\
+    #         .format(var, domainkey, long, lat)
+    #     windb2.curs.execute(sql)
+    #     existing_t_range = windb2.curs.fetchone()
+    #     if existing_t_range[0] is None and existing_t_range[1] is None:
+    #         missing_data = True
+    #         break
 
     # Get everything is nothing is here
     if missing_data:
@@ -86,8 +88,8 @@ def download_all_merra2(windb2, long, lat, vars, dryRun=False):
             # Generatet the ncks command to run
             url = 'http://goldsmr4.gesdisc.eosdis.nasa.gov/dods/M2T1NXSLV'
             cmd = '/usr/bin/ncks'
-            args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{}-{}.nc' \
-                .format(vars, index_start, index_stop, long, lat, url, long, lat, index_start, index_stop)
+            args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{:06}-{:06}.nc' \
+                .format(variables, index_start, index_stop, longSurround, latSurround, url, long, lat, index_start, index_stop)
             if dryRun:
                 print(cmd, ' ', args)
             else:
