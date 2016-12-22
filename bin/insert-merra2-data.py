@@ -22,11 +22,7 @@ import logging
 import argparse
 from windb2 import windb2
 from windb2.model.merra2 import util
-from windb2.struct import geovariable, insert
-from netCDF4 import Dataset, num2date
-import re
-from datetime import datetime, timedelta
-
+import glob
 
 # Logging
 logging.basicConfig(level=logging.WARNING)
@@ -39,7 +35,6 @@ parser.add_argument('dbName', type=str, help='Database name of WinDB')
 parser.add_argument('vars', type=str, help="CSV list of MERRA2 variable names e.g. 'u50m,v50m' or 'windenergy' to get t10m,u10m,v10m,t2m,u2m,v2m,u50m,v50m,ps,disph")
 parser.add_argument('long', type=float, help='Longitude to download surrounding nodes for')
 parser.add_argument('lat', type=float, help='Latitude to download surrounding nodes for')
-parser.add_argument('ncFile', type=str, help='MERRA2 netCDF file')
 parser.add_argument('-d', '--download', action="store_true", help='Download all available times for the surrounding nodes')
 parser.add_argument('-i', '--insert', action="store_true", help='Inserts all files files for surrounding nodes')
 args = parser.parse_args()
@@ -52,12 +47,12 @@ if args.vars == 'windenergy':
 windb2conn = windb2.WinDB2(args.dbHost, args.dbName, args.dbUser)
 windb2conn.connect()
 
+# Get the coordinate range of the surrounding coords
+# If the coodinate happens to be a MERRA node, only one node will be downloaded and/or inserted
+longRange, latRange = util.get_surrounding_merra2_nodes(args.long, args.lat)
+
 # Download all of the MERRA2 netCDF file from the begginning of time
 if args.download:
-
-    # Get the coordinate range of the surrounding coords
-    # If the coodinate happens to be a MERRA node, only one node will be downloaded
-    longRange, latRange = util.get_surrounding_merra2_nodes(args.long, args.lat)
 
     # Download all of the MERRA2 data
     util.download_all_merra2(windb2conn, args.long, args.lat, args.vars, dryRun=True)
@@ -65,6 +60,9 @@ if args.download:
 # Insert the MERRA2 netCDF file
 if args.insert:
 
+    # Get a list of files that match the expected pattern
+    files_to_insert = glob.glob('./merra2_{}_{}_*.nc'.format(longRange, latRange))
+
     # Insert the files
-    # TODO add file globbing
-    util.insert_merra2_file(windb2conn, args.ncFile, args.vars)
+    for file in files_to_insert:
+        util.insert_merra2_file(windb2conn, file, args.vars)

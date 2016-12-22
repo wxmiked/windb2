@@ -18,9 +18,15 @@ class GeoVariable(object):
     def __init__(self, name, time, height, val, units="unset"):
         self.name = name
         self.time = time
-        self.height = float(height)
+        try:
+            self.height = float(height)
+        except ValueError:
+            self.height = None
         self.val = float(val)
-        self.units = units
+        try:
+            self.units = units
+        except ValueError:
+            self.units = 'unset'
 
     """Returns the value as a float"""
 

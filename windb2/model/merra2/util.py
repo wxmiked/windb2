@@ -89,13 +89,14 @@ def download_all_merra2(windb2, long, lat, variables, dryRun=False):
             url = 'http://goldsmr4.gesdisc.eosdis.nasa.gov/dods/M2T1NXSLV'
             cmd = '/usr/bin/ncks'
             args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{:06}-{:06}.nc' \
-                .format(variables, index_start, index_stop, longSurround, latSurround, url, long, lat, index_start, index_stop)
+                .format(variables, index_start, index_stop, longSurround, latSurround, url,
+                        longSurround, latSurround, index_start, index_stop)
             if dryRun:
                 print(cmd, ' ', args)
             else:
                 import subprocess
                 print('Running: {} {}'.format(cmd, args))
-                subprocess.call(cmd + ' ' + args, shell=True, cwd='/data/tmp')
+                subprocess.call(cmd + ' ' + args, shell=True)
 
             start_t_incl += timedelta(days=chunk_size_days)
 
@@ -154,8 +155,8 @@ def insert_merra2_file(windb2conn, ncfile, vars):
                     # Increment t
                     tcount += 1
 
-            # Insert the data
-            insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert, long, lat)
+                # Insert the data
+                insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert, longitude=long, latitude=lat)
 
             # Increment lat
             latcount += 1

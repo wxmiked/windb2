@@ -212,7 +212,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
     if geomKey is None:
         sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
                VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
-            .format(domainKey, x or None, y or None, longitude, latitude)
+            .format(domainKey, x, y, longitude, latitude)
         windb2.curs.execute(sql)
         geomKey = windb2.curs.fetchone()[0]
     else:
