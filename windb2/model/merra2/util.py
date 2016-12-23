@@ -10,6 +10,10 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
     Returns a string of long for ncks, string of long for ncks
     """
 
+    # Round to the appropriate resolution
+    long = round(long, 3)
+    lat = round(lat, 2)
+
     # MERRA2 specs
     deltaLong = 0.625
     deltaLat = 0.5
