@@ -49,12 +49,6 @@ def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_mis
         merra2_end_excl = merra2_end_excl - timedelta(days=15)
     merra2_end_excl = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=pytz.utc)
 
-    # Get the domain key
-    domainkey = windb2.findDomainForDataName('MERRA2')
-    if domainkey is None:
-        raise ValueError('You have to run this for existing MERRA2 domains.')
-        sys.exit(-3)
-
     # If there's nothing in the database, then we need to get everything
     missing_data = False
     # TODO this needs to be implemented in a smart way, just downloading everything for now
