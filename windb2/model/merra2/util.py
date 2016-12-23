@@ -74,7 +74,7 @@ def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_mis
     if missing_data:
 
         # Download the data in chunks
-        start_t_incl = merra2_start_incl
+        start_t_incl = datetime(1996, 1, 1, 0, 0, 0).replace(tzinfo=pytz.utc)
         chunk_size_days = 200
         while start_t_incl < merra2_end_excl:
 
@@ -85,11 +85,6 @@ def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_mis
             else:
                 index_stop = (merra2_end_excl - merra2_start_incl).days * 24 - 1
             end_t_incl = merra2_start_incl + timedelta(hours=index_stop)
-
-            # Debug
-            # if dryrun:
-            #     print('var={} index_start={}, index_stop={}'.format(var, index_start, index_stop))
-            #     print('start_t_incl={} end_t_incl={}'.format(start_t_incl, end_t_incl))
 
             # Generatet the ncks command to run
             url = 'http://goldsmr4.gesdisc.eosdis.nasa.gov/dods/M2T1NXSLV'
