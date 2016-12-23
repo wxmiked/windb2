@@ -28,10 +28,12 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
         return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
 
 
-def download_all_merra2(windb2, long, lat, variables, dryRun=False):
+def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_missing=False):
     """Checks the inventory and downloads all MERRA2 for a given coordinate"""
     from datetime import datetime, timedelta
     import pytz
+    import subprocess
+    import os.path
 
     # Get the surrounding nodes
     longSurround, latSurround = get_surrounding_merra2_nodes(long, lat)
@@ -81,20 +83,27 @@ def download_all_merra2(windb2, long, lat, variables, dryRun=False):
             end_t_incl = merra2_start_incl + timedelta(hours=index_stop)
 
             # Debug
-            # if dryRun:
+            # if dryrun:
             #     print('var={} index_start={}, index_stop={}'.format(var, index_start, index_stop))
             #     print('start_t_incl={} end_t_incl={}'.format(start_t_incl, end_t_incl))
 
             # Generatet the ncks command to run
             url = 'http://goldsmr4.gesdisc.eosdis.nasa.gov/dods/M2T1NXSLV'
             cmd = '/usr/bin/ncks'
-            args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} merra2_{}_{}_{:06}-{:06}.nc' \
-                .format(variables, index_start, index_stop, longSurround, latSurround, url,
-                        longSurround, latSurround, index_start, index_stop)
-            if dryRun:
+            filename = 'merra2_{}_{}_{:06}-{:06}.nc'.format(longSurround, latSurround, index_start, index_stop)
+            args = '-O -v {} -d time,{},{} -d lon,{} -d lat,{} {} {}' \
+                .format(variables, index_start, index_stop, longSurround, latSurround, url, filename)
+
+            # Only download what's missing
+            if download_missing:
+                if os.path.isfile(filename):
+                    print('Skipping file: {}'.format(filename))
+                    start_t_incl += timedelta(days=chunk_size_days)
+                    continue
+
+            if dryrun:
                 print(cmd, ' ', args)
             else:
-                import subprocess
                 print('Running: {} {}'.format(cmd, args))
                 subprocess.call(cmd + ' ' + args, shell=True)
 
