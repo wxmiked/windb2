@@ -124,7 +124,7 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     # Commit these changes
     windb2.conn.commit()
 
-def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, longitude=0, latitude=0, resolution=0):
+def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, longitude=0, latitude=0, resolution=0, reinsert=False):
     """Inserts a list of Variables into the given database.
 
     windb2, WinDB2 instantiation
@@ -220,16 +220,42 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
 
     # Insert all of the data
     execList = []
+    t_min = None
+    t_max = None
     sql = """INSERT INTO {}_{} (domainkey, geomkey, t, height, value)
            VALUES (%(domainkey)s, %(geomkey)s, %(t)s, %(height)s, %(value)s)"""\
         .format(variableList[0].name, domainKey)
     for data in variableList:
+
+        # Store the min and max dates for the reinsert functionality
+        if reinsert:
+            if t_min is None:
+                t_min = data.time
+            elif data.time < t_min:
+                t_min = data.time
+
+            if t_max is None:
+                t_max = data.time
+            elif data.time > t_max:
+                t_max = data.time
 
         # Data to append
         dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'height': data.height, 'value': data.val}
         execList.append(dataToAppend)
 
     try:
+
+        # Clean out the table before insert if reinsert is true
+        if reinsert:
+            print('DELETING all data between {} and {} from: {}_{}'
+                  .format(t_min, t_max, variableList[0].name, domainKey, geomKey))
+            sql = "DELETE FROM {}_{} " \
+                  "WHERE geomkey={} AND t>=timestamp with time zone'{}' AND t<=timestamp with time zone'{}'"\
+                .format(variableList[0].name, domainKey, geomKey, t_min, t_max)
+            print('Reinsert delete: {}'.format(sql))
+            windb2.curs.execute(sql)
+
+        # Insert the list of geovariables
         windb2.curs.executemany(sql, execList)
     except psycopg2.DataError as detail:
         print("DataError while inserting the large list wind speed: ", detail)

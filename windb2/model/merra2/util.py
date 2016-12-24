@@ -32,7 +32,7 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
         return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
 
 
-def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_missing=False):
+def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_missing=False, startyear=1980):
     """Checks the inventory and downloads all MERRA2 for a given coordinate"""
     from datetime import datetime, timedelta
     import pytz
@@ -68,7 +68,7 @@ def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_mis
     if missing_data:
 
         # Download the data in chunks
-        start_t_incl = datetime(1996, 1, 1, 0, 0, 0).replace(tzinfo=pytz.utc)
+        start_t_incl = datetime(startyear, 1, 1, 0, 0, 0).replace(tzinfo=pytz.utc)
         chunk_size_days = 200
         while start_t_incl < merra2_end_excl:
 
@@ -102,7 +102,7 @@ def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_mis
 
             start_t_incl += timedelta(days=chunk_size_days)
 
-def insert_merra2_file(windb2conn, ncfile, vars):
+def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
     """Inserts a MERRA2 file downloaded using ncks
 
     ncfile: netCDF file downloaded with ncks
@@ -158,7 +158,8 @@ def insert_merra2_file(windb2conn, ncfile, vars):
                     tcount += 1
 
                 # Insert the data
-                insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert, longitude=long, latitude=lat)
+                insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert,
+                                         longitude=long, latitude=lat, reinsert=reinsert)
 
             # Increment lat
             latcount += 1

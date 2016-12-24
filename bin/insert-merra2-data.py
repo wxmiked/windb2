@@ -23,6 +23,7 @@ import argparse
 from windb2 import windb2
 from windb2.model.merra2 import util
 import glob
+from datetime import datetime
 
 # Logging
 logging.basicConfig(level=logging.WARNING)
@@ -35,15 +36,21 @@ parser.add_argument('dbName', type=str, help='Database name of WinDB')
 parser.add_argument('vars', type=str, help="CSV list of MERRA2 variable names e.g. 'u50m,v50m' or 'windenergy' to get t10m,u10m,v10m,t2m,u2m,v2m,u50m,v50m,ps,disph")
 parser.add_argument('long', type=float, help='Longitude to download surrounding nodes for')
 parser.add_argument('lat', type=float, help='Latitude to download surrounding nodes for')
+parser.add_argument('-s', '--startyear', default=1980, type=int, help='Year to start downloading')
 parser.add_argument('-d', '--download', action="store_true", help='Download all available times for the surrounding nodes')
 parser.add_argument('-m', '--missing', action="store_true", help='Download missing files from the --download option')
 parser.add_argument('-i', '--insert', action="store_true", help='Inserts all files files for surrounding nodes')
 parser.add_argument('-t', '--testing', action="store_true", help='Does not download but only prints the download ncks commands')
+parser.add_argument('-r', '--reinsert', action="store_true", help='Deletes all tables data for a variable and geom before insert')
 args = parser.parse_args()
 
 # See if we are using a predefined set of vars
 if args.vars == 'windenergy':
     args.vars = 't10m,u10m,v10m,t2m,u2m,v2m,u50m,v50m,ps,disph'
+
+# Make sure the start year is sane
+if args.startyear < 1980 and args.startyear < datetime.utcnow().year:
+    print('Start year must be at least 1980')
 
 # Open the WinDB2
 windb2conn = windb2.WinDB2(args.dbHost, args.dbName, args.dbUser)
@@ -57,7 +64,8 @@ longRange, latRange = util.get_surrounding_merra2_nodes(args.long, args.lat)
 if args.download:
 
     # Download all of the MERRA2 data
-    util.download_all_merra2(windb2conn, args.long, args.lat, args.vars, dryrun=args.testing, download_missing=args.missing)
+    util.download_all_merra2(windb2conn, args.long, args.lat, args.vars, dryrun=args.testing,
+                             download_missing=args.missing, startyear=args.startyear)
 
 # Insert the MERRA2 netCDF file
 if args.insert:
@@ -67,4 +75,4 @@ if args.insert:
 
     # Insert the files
     for file in files_to_insert:
-        util.insert_merra2_file(windb2conn, file, args.vars)
+        util.insert_merra2_file(windb2conn, file, args.vars, reinsert=args.reinsert)
