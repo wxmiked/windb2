@@ -24,8 +24,13 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
     bottonLat = lat - ((lat*100)%(deltaLat*100))/100
     topLat = bottonLat + deltaLat
 
-    longGrid, latGrid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
+    long_grid, lat_grid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
 
+    # Return the grid if requested
+    if grid:
+        return long_grid, lat_grid
+
+    # Return a single coordinate if an exact MERRA node location has been requested, surrounding points otherwise
     if (leftLong*1000)%(deltaLong*1000) == 0 and (lat*100)%(deltaLat*100) == 0:
         return '{}'.format(long), '{}'.format(lat)
     else:
@@ -112,8 +117,12 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
     import re
     from windb2.struct import geovariable, insert
 
+    # Info
+    print('Inserting: {}'.format(ncfile))
+
     # Open the netCDF file
     ncfile = Dataset(ncfile, 'r')
+
     # Get the times
     timevar = ncfile.variables['time']
     timearr = num2date(timevar[:], units=timevar.units)
@@ -166,6 +175,79 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
 
         # Increment long
         longcount += 1
+
+def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
+    import numpy as np
+    import re
+
+    # Split the variables
+    variables = variables.split(',')
+
+    # Get the gridded coordinates
+    long_grid, lat_grid = get_surrounding_merra2_nodes(long, lat, grid=True)
+
+    # Write out a CSV file for each MERRA node, labeled A through D
+    labels = np.array([['A', 'B'], ['C', 'D']])
+    it = np.nditer(long_grid, flags=['multi_index'])
+    while not it.finished:
+
+        # Get the geomkey for this node
+        sql = "SELECT key, domainkey " \
+              "FROM horizgeom " \
+              "WHERE st_transform(geom,4326)=st_geomfromtext('POINT({} {})',4326) LIMIT 1"\
+            .format(long_grid[it.multi_index], lat_grid[it.multi_index])
+        windb2conn.curs.execute(sql)
+        geomkey, domainkey = windb2conn.curs.fetchone()
+
+        # Get the max time
+        sql = 'SELECT max(t) FROM {}_{} WHERE geomkey={}'.format(variables[0], domainkey, geomkey)
+        windb2conn.curs.execute(sql)
+        tmax = windb2conn.curs.fetchone()[0].date()
+
+        # Create the view
+        names_re = [re.match(r'([a-z]+)([0-9]*)([a-z]*)[,]*', var) for var in variables]
+        selects = '{}.t as t, '.format(names_re[0].group(0)) + \
+                  '%s ' % str(['{varname}.value as {varname} '
+                              .format(varname=var.group(0)) for var in names_re])\
+                      .replace("'", '').replace('[', '').replace(',$', '').replace(']', '')
+        froms = '{varname}_{domainkey} as {varname}'.format(varname=variables[0], domainkey=domainkey)
+        leftjoins = '%s ' % str(['LEFT JOIN {varname}_{domainkey} as {varname} ON {varname1}.t={varname}.t '
+                            .format(varname1=variables[0], varname=var, domainkey=domainkey) for var in variables[1:-1]]) \
+                            .replace("'", '').replace('[', '').replace(',$', '').replace(']', '').replace(',', '')
+        leftjoins += 'LEFT JOIN {varname}_{domainkey} as {varname} ON {varname1}.t={varname}.t ' \
+                     .format(varname1=variables[0], varname=variables[-1], domainkey=domainkey)
+        wheres = '%s ' % str(['{varname}.geomkey={geomkey} AND '
+                             .format(varname=var, geomkey=geomkey) for var in variables[:-1]])\
+                             .replace("'", '').replace('[', '').replace(',$', '').replace(']', '').replace(',', '')
+        wheres += '{varname}.geomkey={geomkey}'.format(varname=variables[-1], geomkey=geomkey)
+        sql = """CREATE TEMP VIEW csv_out_node_A AS
+                 SELECT u50m.t as t, u50m.value as u50m , v50m.value as v50m , t2m.value as t2m
+                 FROM u50m_1 as u50m
+                    LEFT JOIN  v50m_1  as v50m ON u50m.t=v50m.t
+                    LEFT JOIN  t2m_1 as t2m ON  u50m.t=t2m.t
+                 WHERE u50m.geomkey=1 AND  v50m.geomkey=1 AND  t2m.geomkey=1
+                 ORDER BY t"""
+        sql = """CREATE TEMP VIEW csv_out_node_{} AS
+                 SELECT {}
+                 FROM {}
+                    {}
+                 WHERE {}
+                 ORDER BY t""".format(labels[it.multi_index], selects, froms, leftjoins, wheres)
+        windb2conn.curs.execute(sql)
+
+        # Make the filename
+        filename='MERRA2_Node_{node}_{long:.{prec}f}_{lat:.{prec}f}_{startyear}_thru_{tmax}.csv'\
+            .format(node=labels[it.multi_index], long=long_grid[it.multi_index], lat=lat_grid[it.multi_index],
+                    prec=3, startyear=startyear, tmax=tmax)
+
+        # Write out the CSV file
+        sql = 'COPY (SELECT * FROM csv_out_node_{}) TO STDOUT WITH CSV HEADER'.format(labels[it.multi_index])
+        with open(filename, 'w') as file:
+            print('Writing out Node {}: {}'.format(labels[it.multi_index], filename))
+            windb2conn.curs.copy_expert(sql, file)
+
+        it.iternext()
+
 
 
 

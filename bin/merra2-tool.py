@@ -37,11 +37,12 @@ parser.add_argument('vars', type=str, help="CSV list of MERRA2 variable names e.
 parser.add_argument('long', type=float, help='Longitude to download surrounding nodes for')
 parser.add_argument('lat', type=float, help='Latitude to download surrounding nodes for')
 parser.add_argument('-s', '--startyear', default=1980, type=int, help='Year to start downloading')
-parser.add_argument('-d', '--download', action="store_true", help='Download all available times for the surrounding nodes')
-parser.add_argument('-m', '--missing', action="store_true", help='Download missing files from the --download option')
-parser.add_argument('-i', '--insert', action="store_true", help='Inserts all files files for surrounding nodes')
-parser.add_argument('-t', '--testing', action="store_true", help='Does not download but only prints the download ncks commands')
-parser.add_argument('-r', '--reinsert', action="store_true", help='Deletes all tables data for a variable and geom before insert')
+parser.add_argument('-d', '--download', action='store_true', help='Download all available times for the surrounding nodes')
+parser.add_argument('-m', '--missing', action='store_true', help='Download missing files from the --download option')
+parser.add_argument('-i', '--insert', action='store_true', help='Inserts all files files for surrounding nodes')
+parser.add_argument('-t', '--testing', action='store_true', help='Does not download but only prints the download ncks commands')
+parser.add_argument('-r', '--reinsert', action='store_true', help='Deletes all tables data for a variable and geom before insert')
+parser.add_argument('-c', '--createcsv', action='store_true', help='Writes out CSV files for the surrounding nodes')
 args = parser.parse_args()
 
 # See if we are using a predefined set of vars
@@ -76,3 +77,7 @@ if args.insert:
     # Insert the files
     for file in files_to_insert:
         util.insert_merra2_file(windb2conn, file, args.vars, reinsert=args.reinsert)
+
+# Create the CSV files
+if args.createcsv:
+    util.export_to_csv(windb2conn, args.long, args.lat, args.vars, startyear=args.startyear)
