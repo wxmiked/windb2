@@ -24,17 +24,18 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
     bottonLat = lat - ((lat*100)%(deltaLat*100))/100
     topLat = bottonLat + deltaLat
 
-    long_grid, lat_grid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
-
-    # Return the grid if requested
-    if grid:
-        return long_grid, lat_grid
-
     # Return a single coordinate if an exact MERRA node location has been requested, surrounding points otherwise
     if (leftLong*1000)%(deltaLong*1000) == 0 and (lat*100)%(deltaLat*100) == 0:
-        return '{}'.format(long), '{}'.format(lat)
+        if grid:
+            long_grid, lat_grid = np.meshgrid([long], [lat])
+            return long_grid, lat_grid
+        else:
+            return '{}'.format(long), '{}'.format(lat)
     else:
-        return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
+        if grid:
+            long_grid, lat_grid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
+        else:
+            return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
 
 
 def download_all_merra2(windb2, long, lat, variables, dryrun=False, download_missing=False, startyear=1980):
@@ -116,6 +117,7 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
     from netCDF4 import Dataset, num2date
     import re
     from windb2.struct import geovariable, insert
+    import pytz
 
     # Info
     print('Inserting: {}'.format(ncfile))
@@ -133,15 +135,15 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
         # Break up the variable name
         var_re = re.match(r'([a-z]+)([0-9]*)([a-z]*)[,]*', var)
 
-        # For each long
-        longcount = 0
-        longarr = ncfile.variables['lon'][:]
-        for long in longarr:
+        # For each lat
+        latcount = 0
+        latarr = ncfile.variables['lat'][:]
+        for lat in latarr:
 
-            # For each lat
-            latcount = 0
-            latarr = ncfile.variables['lat'][:]
-            for lat in latarr:
+            # For each long
+            longcount = 0
+            longarr = ncfile.variables['lon'][:]
+            for long in longarr:
 
                 # For each time in the variable
                 tcount = 0
@@ -149,7 +151,7 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                 for t in timearr:
 
                     # Clean up the seconds because every other time has a residual
-                    t = t.replace(microsecond=0)
+                    t = t.replace(microsecond=0).replace(tzinfo=pytz.utc)
 
                     # Figure out the height
                     if var_re.group(2) is not None:
@@ -157,14 +159,12 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                     else:
                         height = -9999
 
-                    # Check for a mask and make None if masked i.e. missing data (otherwise this ends up a NaN in PSQL)
-                    if ncfile.variables[var_re.group(0)][tcount, latcount, longcount].mask:
-                        print('Converting masked value to null at {} '.format(t))
-                        v = geovariable.GeoVariable(var, t, height, None)
-                    else:
-                        v = geovariable.GeoVariable(var, t, height,
-                                                    ncfile.variables[var_re.group(0)][tcount, latcount, longcount])
+                    # Append the data to insert
+                    v = geovariable.GeoVariable(var, t, height,
+                        ncfile.variables[var][tcount, latcount, longcount])
                     varstoinsert.append(v)
+                    if var == 'u50m':
+                        print(v)
 
                     # Increment t
                     tcount += 1
@@ -172,12 +172,13 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                 # Insert the data
                 insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert,
                                          longitude=long, latitude=lat, reinsert=reinsert)
+                # Increment long
+                longcount += 1
 
-                # Increment lat
-                latcount += 1
+            # Increment lat
+            latcount += 1
 
-            # Increment long
-            longcount += 1
+
 
 def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
     import numpy as np
@@ -215,10 +216,12 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
                       .replace("'", '').replace('[', '').replace(',$', '').replace(']', '')
         froms = '{varname}_{domainkey} as {varname}'.format(varname=variables[0], domainkey=domainkey)
         leftjoins = '%s ' % str(['LEFT JOIN {varname}_{domainkey} as {varname} ON {varname1}.t={varname}.t '
-                            .format(varname1=variables[0], varname=var, domainkey=domainkey) for var in variables[1:-1]]) \
+                                 'AND {varname1}.geomkey={varname}.geomkey AND {varname}.geomkey={geomkey}' \
+                                .format(varname1=variables[0], varname=var, domainkey=domainkey, geomkey=geomkey) for var in variables[1:-1]]) \
                             .replace("'", '').replace('[', '').replace(',$', '').replace(']', '').replace(',', '')
         leftjoins += 'LEFT JOIN {varname}_{domainkey} as {varname} ON {varname1}.t={varname}.t ' \
-                     .format(varname1=variables[0], varname=variables[-1], domainkey=domainkey)
+                     'AND {varname1}.geomkey={varname}.geomkey AND {varname}.geomkey={geomkey}' \
+                     .format(varname1=variables[0], varname=variables[-1], domainkey=domainkey, geomkey=geomkey)
         wheres = '%s ' % str(['{varname}.geomkey={geomkey} AND '
                              .format(varname=var, geomkey=geomkey) for var in variables[:-1]])\
                              .replace("'", '').replace('[', '').replace(',$', '').replace(']', '').replace(',', '')
@@ -226,8 +229,8 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
 
         # Convert u,v pairs into speed "ws" and "wd" direction fields
         # Negate the wind direction to get the meteorogical wind direction
-        selects = re.sub(r'u([0-9]+)m\.value as u[0-9]+m , v([0-9]+)m\.value as v[0-9]+m , ',
-                         'speed(u\g<1>m.value, v\g<2>m.value) as ws\g<1>m, calc_dir_deg(-u\g<1>m.value, -v\g<2>m.value)::int as wd\g<1>m, ',
+        selects = re.sub(r'u([0-9]+)m\.value as u[0-9]+m , v([0-9]+)m\.value as v[0-9]+m ([,]*) ',
+                         'speed(u\g<1>m.value, v\g<2>m.value) as ws\g<1>m, calc_dir_deg(-u\g<1>m.value, -v\g<2>m.value)::int as wd\g<1>m\g<3> ',
                          selects)
 
         # sql = """CREATE TEMP VIEW csv_out_node_A AS
