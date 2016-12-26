@@ -187,7 +187,7 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
     long_grid, lat_grid = get_surrounding_merra2_nodes(long, lat, grid=True)
 
     # Write out a CSV file for each MERRA node, labeled A through D
-    labels = np.array([['A', 'B'], ['C', 'D']])
+    labels = np.array([['C', 'D'], ['A', 'B']])
     it = np.nditer(long_grid, flags=['multi_index'])
     while not it.finished:
 
@@ -220,13 +220,22 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
                              .format(varname=var, geomkey=geomkey) for var in variables[:-1]])\
                              .replace("'", '').replace('[', '').replace(',$', '').replace(']', '').replace(',', '')
         wheres += '{varname}.geomkey={geomkey}'.format(varname=variables[-1], geomkey=geomkey)
-        sql = """CREATE TEMP VIEW csv_out_node_A AS
-                 SELECT u50m.t as t, u50m.value as u50m , v50m.value as v50m , t2m.value as t2m
-                 FROM u50m_1 as u50m
-                    LEFT JOIN  v50m_1  as v50m ON u50m.t=v50m.t
-                    LEFT JOIN  t2m_1 as t2m ON  u50m.t=t2m.t
-                 WHERE u50m.geomkey=1 AND  v50m.geomkey=1 AND  t2m.geomkey=1
-                 ORDER BY t"""
+
+        # Convert u,v pairs into speed "ws" and "wd" direction fields
+        # Negate the wind direction to get the meteorogical wind direction
+        selects = re.sub(r'u([0-9]+)m\.value as u[0-9]+m , v([0-9]+)m\.value as v[0-9]+m , ',
+                         'speed(u\g<1>m.value, v\g<2>m.value) as ws\g<1>m, calc_dir_deg(-u\g<1>m.value, -v\g<2>m.value) as wd\g<1>m, ',
+                         selects)
+
+        # sql = """CREATE TEMP VIEW csv_out_node_A AS
+        #          SELECT u50m.t as t, u50m.value as u50m , v50m.value as v50m , t2m.value as t2m
+        #          FROM u50m_1 as u50m
+        #             LEFT JOIN  v50m_1  as v50m ON u50m.t=v50m.t
+        #             LEFT JOIN  t2m_1 as t2m ON  u50m.t=t2m.t
+        #          WHERE u50m.geomkey=1 AND  v50m.geomkey=1 AND  t2m.geomkey=1
+        #          ORDER BY t"""
+
+        # Final query to create the view
         sql = """CREATE TEMP VIEW csv_out_node_{} AS
                  SELECT {}
                  FROM {}
