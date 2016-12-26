@@ -157,8 +157,13 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                     else:
                         height = -9999
 
-                    v = geovariable.GeoVariable(var, t, height,
-                                                ncfile.variables[var_re.group(0)][tcount, latcount, longcount])
+                    # Check for a mask and make None if masked i.e. missing data (otherwise this ends up a NaN in PSQL)
+                    if ncfile.variables[var_re.group(0)][tcount, latcount, longcount].mask:
+                        print('Converting masked value to null at {} '.format(t))
+                        v = geovariable.GeoVariable(var, t, height, None)
+                    else:
+                        v = geovariable.GeoVariable(var, t, height,
+                                                    ncfile.variables[var_re.group(0)][tcount, latcount, longcount])
                     varstoinsert.append(v)
 
                     # Increment t
@@ -222,7 +227,7 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
         # Convert u,v pairs into speed "ws" and "wd" direction fields
         # Negate the wind direction to get the meteorogical wind direction
         selects = re.sub(r'u([0-9]+)m\.value as u[0-9]+m , v([0-9]+)m\.value as v[0-9]+m , ',
-                         'speed(u\g<1>m.value, v\g<2>m.value) as ws\g<1>m, calc_dir_deg(-u\g<1>m.value, -v\g<2>m.value) as wd\g<1>m, ',
+                         'speed(u\g<1>m.value, v\g<2>m.value) as ws\g<1>m, calc_dir_deg(-u\g<1>m.value, -v\g<2>m.value)::int as wd\g<1>m, ',
                          selects)
 
         # sql = """CREATE TEMP VIEW csv_out_node_A AS
