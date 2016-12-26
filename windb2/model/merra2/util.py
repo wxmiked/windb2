@@ -126,9 +126,7 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
     # Get the times
     timevar = ncfile.variables['time']
     timearr = num2date(timevar[:], units=timevar.units)
-    # Get the coordinates
-    longitudearr = ncfile.variables['lon'][:]
-    latitudearr = ncfile.variables['lat'][:]
+
     # For each variable...
     for var in vars.split(','):
 
@@ -137,12 +135,12 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
 
         # For each long
         longcount = 0
-        longarr = ncfile.variables['lon']
+        longarr = ncfile.variables['lon'][:]
         for long in longarr:
 
             # For each lat
             latcount = 0
-            latarr = ncfile.variables['lat']
+            latarr = ncfile.variables['lat'][:]
             for lat in latarr:
 
                 # For each time in the variable
@@ -170,11 +168,11 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                 insert.insertGeoVariable(windb2conn, "MERRA2", "NASA", varstoinsert,
                                          longitude=long, latitude=lat, reinsert=reinsert)
 
-            # Increment lat
-            latcount += 1
+                # Increment lat
+                latcount += 1
 
-        # Increment long
-        longcount += 1
+            # Increment long
+            longcount += 1
 
 def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
     import numpy as np
