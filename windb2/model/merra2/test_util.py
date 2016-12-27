@@ -16,3 +16,9 @@ class TestUtil(unittest.TestCase):
 
     def testDownload(self):
         util.download_all_merra2(self.db, 90.625, -45.5, 'u50m,v50m', dryrun=True)
+
+    def testIndexConvert(self):
+        self.assertEqual(util._convert_long_to_index(-179.375, -90), (0, 0))
+        self.assertEqual(util._convert_long_to_index(180, 90), (575, 360))
+        numpy.testing.assert_array_equal(util._convert_long_to_index([-100.625, -100], [32.5, 33.0]),
+                                         [[126, 127], [245, 246]])
