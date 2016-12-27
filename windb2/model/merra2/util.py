@@ -14,18 +14,14 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
     long = round(long, 3)
     lat = round(lat, 2)
 
-    # MERRA2 specs
-    deltaLong = 0.625
-    deltaLat = 0.5
-
     # Closest points
-    leftLong = long - ((long*1000)%(deltaLong*1000))/1000
-    rightLong = leftLong + deltaLong
-    bottonLat = lat - ((lat*100)%(deltaLat*100))/100
-    topLat = bottonLat + deltaLat
+    leftLong = long - ((long*1000)%(_merra2_long_res*1000))/1000
+    rightLong = leftLong + _merra2_long_res
+    bottonLat = lat - ((lat*100)%(_merra2_lat_res*100))/100
+    topLat = bottonLat + _merra2_lat_res
 
     # Return a single coordinate if an exact MERRA node location has been requested, surrounding points otherwise
-    if (leftLong*1000)%(deltaLong*1000) == 0 and (lat*100)%(deltaLat*100) == 0:
+    if (leftLong*1000)%(_merra2_long_res*1000) == 0 and (lat*100)%(_merra2_lat_res*100) == 0:
         if grid:
             long_grid, lat_grid = np.meshgrid([long], [lat])
             return long_grid, lat_grid
@@ -262,6 +258,17 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
             windb2conn.curs.copy_expert(sql, file)
 
         it.iternext()
+
+def _convert_long_to_index(long_surround, lat_surround):
+
+    if isinstance(long_surround, list):
+        long_surround = np.array(long_surround)
+        lat_surround = np.array(lat_surround)
+
+    if np.all((long_surround*1000)%(_merra2_long_res*1000)) or np.all((lat_surround*100)%(_merra2_lat_res*100)):
+        raise ValueError('Illegal long or at value')
+
+    return (long_surround + 179.375)/_merra2_long_res, (lat_surround + 90)/_merra2_lat_res
 
 
 
