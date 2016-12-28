@@ -22,7 +22,10 @@ class GeoVariable(object):
             self.height = float(height)
         except ValueError:
             self.height = None
-        self.val = float(val)
+        if val is not None:
+            self.val = float(val)
+        else:
+            self.val = None
         try:
             self.units = units
         except ValueError:

@@ -30,6 +30,7 @@ def get_surrounding_merra2_nodes(long, lat, grid=False):
     else:
         if grid:
             long_grid, lat_grid = np.meshgrid([leftLong, rightLong], [bottonLat, topLat])
+            return long_grid, lat_grid
         else:
             return '{},{}'.format(leftLong, rightLong), '{},{}'.format(bottonLat, topLat)
 
@@ -128,6 +129,10 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
     # For each variable...
     for var in vars.split(','):
 
+        # Masked value to check for
+        missing_value = ncfile[var].missing_value
+
+
         # Break up the variable name
         var_re = re.match(r'([a-z]+)([0-9]*)([a-z]*)[,]*', var)
 
@@ -156,11 +161,12 @@ def insert_merra2_file(windb2conn, ncfile, vars, reinsert=False):
                         height = -9999
 
                     # Append the data to insert
-                    v = geovariable.GeoVariable(var, t, height,
-                        ncfile.variables[var][tcount, latcount, longcount])
+                    if ncfile.variables[var][tcount, latcount, longcount] != missing_value:
+                        v = geovariable.GeoVariable(var, t, height,
+                            ncfile.variables[var][tcount, latcount, longcount])
+                    else:
+                        v = geovariable.GeoVariable(var, t, height, None)
                     varstoinsert.append(v)
-                    if var == 'u50m':
-                        print(v)
 
                     # Increment t
                     tcount += 1
@@ -242,8 +248,8 @@ def export_to_csv(windb2conn, long, lat, variables, startyear=1980):
                  SELECT {}
                  FROM {}
                     {}
-                 WHERE {}
-                 ORDER BY t""".format(labels[it.multi_index], selects, froms, leftjoins, wheres)
+                 WHERE {} AND {}.t>=timestamp'{}-01-01 00:00:00+00'
+                 ORDER BY t""".format(labels[it.multi_index], selects, froms, leftjoins, wheres, variables[0], startyear)
         windb2conn.curs.execute(sql)
 
         # Make the filename
