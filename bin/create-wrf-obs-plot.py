@@ -156,7 +156,7 @@ if knotConversion == 1:
   ax1.set_ylim((0,10))
   ax1.set_ylabel('wind speed [$\mathrm{ms^{-1}}$]', fontsize='medium')
 else:
-  ax1.set_ylim((0,22))
+  ax1.set_ylim((0,35))
   ax1.set_ylabel('wind speed [knots]', fontsize='medium')
 fig1.autofmt_xdate()
 heightCount = 1

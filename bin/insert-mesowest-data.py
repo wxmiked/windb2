@@ -85,7 +85,7 @@ else:
 # Download the file
 tmpFile = tempfile.NamedTemporaryFile(mode='r+b',delete=False)
 tmpFileName = tmpFile.name
-url = "http://api.mesowest.net/v2/stations/timeseries?token=demotoken&stid={}&start={}&end={}&output=csv&units=english".format(args.stationId, startTime, endTime)
+url = "http://api.mesowest.net/v2/stations/timeseries?token=demotoken&stid={}&start={}&end={}&output=csv&units=temp|K,speed|kts,height|m,metric".format(args.stationId, startTime, endTime)
 print('Downloading: ', url)
 urlHandle = urlopen(url)
 try:
@@ -106,7 +106,7 @@ stationId = re.match('# STATION: (\w+)', reader.readline()).group(1)
 stationName = re.match('# STATION NAME: (\w+)', reader.readline()).group(1)
 latitude = re.match('# LATITUDE: ([0-9\\.\\-]+)', reader.readline()).group(1)
 longitude = re.match('# LONGITUDE: ([0-9\\.\\-]+)', reader.readline()).group(1)
-elevationFt = re.match('# ELEVATION \\[ft\\]: ([0-9]+)', reader.readline()).group(1)
+elevationM = int(float(re.match('# ELEVATION \\[ft\\]: ([0-9]+)', reader.readline()).group(1))/3.3)
 state = re.match('# STATE: (\w+)', reader.readline()).group(1)
 
 # Info
@@ -143,7 +143,7 @@ for row in reader:
     
     # Add data, if the wind speed and direction are not null
     if row[colDict['wind_speed_set_1']] != "" and row[colDict['wind_direction_set_1']] != "": 
-        windData.append(winddata.WindData(row[colDict['Date_Time']], 10, float(row[colDict['wind_speed_set_1']]), float(row[colDict['wind_direction_set_1']])))
+        windData.append(winddata.WindData(row[colDict['Date_Time']], elevationM, float(row[colDict['wind_speed_set_1']]), float(row[colDict['wind_direction_set_1']])))
         
         # Increment count of valid data
         count += 1
