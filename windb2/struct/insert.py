@@ -51,8 +51,8 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
         # Get the domain key
         domainKey = windb2.curs.fetchone()[0]
 
-        # Create a new windspeed table
-        sql = "CREATE TABLE windspeed_" + str(domainKey) + " () INHERITS(windspeed)"
+        # Create a new wind table
+        sql = "CREATE TABLE wind_" + str(domainKey) + " () INHERITS(GeoVariable)"
         try:
             windb2.curs.execute(sql)
         except Exception as detail:
@@ -60,8 +60,16 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
             detail
 
         # Add in the unique constraint because this is not inherited from parent
-        sql = "ALTER TABLE windspeed_" + str(domainKey) + " ADD CONSTRAINT windspeed_" + str(
+        sql = "ALTER TABLE wind_" + str(domainKey) + " ADD CONSTRAINT wind_" + str(
             domainKey) + "_domainkey_geomkey_t_height_key UNIQUE (domainkey, geomkey, t, height)"
+        try:
+            windb2.curs.execute(sql)
+        except Exception as detail:
+            print
+            detail
+
+        # Add in the unique constraint because this is not inherited from parent
+        sql = "ALTER TABLE wind_" + str(domainKey) + " ADD COLUMN speed float, ADD COLUMN direction smallint"
         try:
             windb2.curs.execute(sql)
         except Exception as detail:
@@ -70,13 +78,14 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
 
         # Add a geometry column to store the observation point
         if data3D:
-            sql = "ALTER TABLE windspeed_" + str(domainKey) + " ADD COLUMN w real"
+            sql = "ALTER TABLE wind_" + str(domainKey) + " ADD COLUMN w real"
             windb2.curs.execute(sql)
 
         # Add a 2D point for the made up location of the
-        sql = "INSERT INTO horizwindgeom(domainkey, x, y, geom) \
+        sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
                VALUES (" + str(domainKey) + ",0,0, st_geomfromtext('POINT(" + str(longitude) + ' ' + str(
             latitude) + ")',4326)) RETURNING key"
+        print(sql)
         windb2.curs.execute(sql)
         geomKey = windb2.curs.fetchone()
 
@@ -87,11 +96,11 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     elif longitude != 0 and latitude != 0:
 
         # Get the geomkey for the location
-        sql = "SELECT key FROM horizwindgeom \
+        sql = "SELECT key FROM horizgeom \
                WHERE st_distance_sphere(geom, st_geomfromtext('POINT(" + str(longitude) + ' ' + str(latitude) + ")',4326)) = 0 AND \
                      domainkey = " + str(domainKey) + " LIMIT 1"
         windb2.curs.execute(sql)
-        geomKey = windb2.curs.fetchone()
+        geomKey = windb2.curs.fetchone()[0]
 
     # Otherwise, this is an ideal domain and there is not geom
     else:
@@ -137,7 +146,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
     # See if this domain data name already exists
     domainKey = windb2.findDomainForDataName(dataName)
 
-    # Try and get the domain key result. If no key was returned, we need to make new domain and windspeed tables
+    # Try and get the domain key result. If no key was returned, we need to make new domain and wind tables
     newDomain = False
     if domainKey is None:
         newDomain = True
