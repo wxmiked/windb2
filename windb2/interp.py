@@ -13,14 +13,14 @@
 #
 
 
-def getCoordsOfReguarGridInWrfCoords(curs, domainNum, long, lat):
+def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nInputLong, nInputLat):
     """Calculates the WRF native coordinates of a regularly defined long, lat grid. The return values are meant
     to plug directly into the mpl_toolkits.basemap.interp function.
     
     @param curs: Psycopg2 cursor of the WinDB database
     @param domainNum: WinDB domain number
-    @param long: 1D Numpy array of longitudes in the regular grid
-    @param lat: 1D Numpy array of latitudes in the regular grid
+    @param outputLong: 1D Numpy array of longitudes in the regular grid
+    @param outputLat: 1D Numpy array of latitudes in the regular grid
     
     @return: wrfX -> 1D WRF native longitudinal coordinate
              wrfY  -> 1D WRF native latitudinal coordinate
@@ -31,21 +31,21 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, long, lat):
     import mpl_toolkits.basemap.pyproj as pyproj
     
     # Get the coordinates of the WRF grid in the native WRF projection
-    sql = """SELECT generate_series(x.min::int,x.max::int,x.resolution::int) as x_coords
+    sql = """SELECT generate_series(x.min::int, x.max::int,(x.max::int - x.min::int)/({} - 1)) as x_coords
              FROM (SELECT min(st_x(geom)), max(st_x(geom)), resolution 
                    FROM horizgeom h, domain d
-                   WHERE h.domainkey=d.key AND domainkey=""" + str(domainNum) + """ 
+                   WHERE h.domainkey=d.key AND domainkey={}
                    GROUP BY d.resolution) x
-             ORDER BY x_coords"""
+             ORDER BY x_coords""".format(nInputLong, domainNum)
     curs.execute(sql)
     results = curs.fetchall()
     wrfX = np.array(results)
-    sql = """SELECT generate_series(y.min::int,y.max::int,y.resolution::int) as y_coords
+    sql = """SELECT generate_series(y.min::int, y.max::int,(y.max::int - y.min::int)/({} - 1)) as y_coords
              FROM (SELECT min(st_y(geom)), max(st_y(geom)), resolution 
                    FROM horizgeom h, domain d
-                   WHERE h.domainkey=d.key AND domainkey=""" + str(domainNum) + """ 
+                   WHERE h.domainkey=d.key AND domainkey={}
                    GROUP BY d.resolution) y
-             ORDER BY y_coords"""
+             ORDER BY y_coords""".format(nInputLat, domainNum)
     curs.execute(sql)
     results = curs.fetchall()
     wrfY = np.array(results)
@@ -58,7 +58,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, long, lat):
     # Change the WRF coordinates of the regular long, lat grid
     # Great tutorial on Basemap Proj4 transformations here: http://all-geo.org/volcan01010/2012/11/change-coordinates-with-pyproj/
     wrfProj4 = pyproj.Proj(wrfProj4Str)
-    longGrid, latGrid = np.meshgrid(long,lat)
+    longGrid, latGrid = np.meshgrid(outputLong, outputLat)
     regGridInWrfX, regGridInWrfY = wrfProj4(longGrid, latGrid)
     
     return wrfX, wrfY, regGridInWrfX, regGridInWrfY
