@@ -120,8 +120,19 @@ for sql in ['Domain.sql', 'HorizGeom.sql', 'GeoVariable.sql']:
 
 # Enable utilities
 os.chdir(script_dir + '/../schema/util')
-for sql in ['UV.sql', 'NGE.sql', 'MSE.sql', 'NB.sql', 'Bias.sql', 'DATE_ROUND.sql', 'WINDDIR.sql']:
-    windb.curs.execute(open(sql, 'r').read())
+for sql in ['Bias.sql', 'CALC_DIR_DEG.sql', 'DATE_ROUND.sql', 'MEDIAN.sql', 'MSE.sql', 'NB.sql', 'NGE.sql',
+            'QUANTILE.sql', 'SPEED.sql', 'UTMZONE.sql', 'UV.sql', 'WINDDIR.sql']:
+    try:
+        windb.curs.execute(open(sql, 'r').read())
+        windb.conn.commit()
+    except psycopg2.ProgrammingError as e:
+        print('Could not add SQL function from: {}'.format(sql))
+        print(e)
+        windb.conn.reset()
+    except psycopg2.InternalError as e:
+        print('Could not add SQL function from: {}'.format(sql))
+        print(e)
+        windb.conn.reset()
 
 # Enable validation
 os.chdir(script_dir + '/../schema/validation')
