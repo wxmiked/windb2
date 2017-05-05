@@ -127,7 +127,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
                     # Add this row to be inserted into the database
                     str_to_write = '{},{},{},{},{},{}\n'.format(domainKey, horizGeomKey[x,y],
                                                                    tncf.strftime('%Y-%m-%d %H:%M:%S %Z'), speed, dir, 0)
-                    temp_file.write(bytes(str_to_write, 'UTF-8'))
+                    temp_file.write(bytes(str_to_write))
                     counter += 1
 
 
