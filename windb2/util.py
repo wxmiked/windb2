@@ -77,46 +77,11 @@ def calc_dir_deg(u, v):
     import math
 
     # Calculate the direction and round it into a integer
-    try:
-        direction = math.degrees(math.atan(math.fabs(v/u)))
-    except ZeroDivisionError:
-        # This can happen if u is zero, see what v is and return 0 i.e. arctangent
-        # The sign will be sorted out below
-        direction = 0
+    direction = math.degrees(math.atan2(u, v))
 
-    # Division by zero case from above
-    if u == 0.0 and v >= 0:
-        direction = 0
-    elif u == 0.0 and v < 0:
-        direction = 180
-
-    # Calculate the quadrant of the wind
-    # NE quadrant
-    elif u > 0 and v >= 0:
-        direction = 90 - direction
-
-    # SE quadrant
-    elif u >= 0 and v < 0:
-        direction += 90;
-
-    # SW quadrant
-    elif u < 0 and v <= 0:
-        direction = 270 - direction
-
-    # NW quadrant
-    elif u <= 0 and v > 0:
-        direction += 270;
-
-    # Set to zero degrees if 360 to avoid ambuigity
-    if direction == 360:
-        direction = 0
-
-    # Throw an exception if the wind direction is greater than 360 or negative
+    # Convert to a positive direction
     if direction < 0:
-        raise ValueError("You cannot have a negative wind direction here: " + direction + " degrees is invalid.")
-
-    if direction >= 360:
-        raise ValueError("You cannot have a wind direction >= 360 here: " + direction + " degrees is invalid.")
+        direction += 360
 
     return direction
 
@@ -187,3 +152,26 @@ def get_deg_from_cardinal(cardinal):
         return dirdeg[cardinal]
     except:
         raise
+
+def get_cardinal_from_deg(dir):
+    """Returns a 16-sector cardinal direction (e.g. WSW, NE, etc...) for a direction in degrees
+    """
+
+    if dir >= 337.5 and dir < 360 or dir < 22.5:
+       return 'N';
+    elif dir >= 22.5  and dir < 67.5:
+        return 'NE'
+    elif dir >= 67.5  and dir < 112.5:
+    	   return 'E'
+    elif dir >= 112.5 and dir < 157.5:
+        return 'SE'
+    elif dir >= 157.5 and dir < 202.5:
+    	   return 'S'
+    elif dir >= 202.5 and dir < 247.5:
+        return 'SW'
+    elif dir >= 247.5 and dir < 292.5:
+    	   return 'W'
+    elif dir >= 292.5 and dir < 337.5:
+        return 'NW'
+    else:
+        return None

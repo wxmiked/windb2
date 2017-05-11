@@ -1,6 +1,6 @@
 import unittest
 import numpy
-import windb2.util as util
+import util
 
 
 class TestUtil(unittest.TestCase):
