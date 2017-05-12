@@ -16,6 +16,9 @@
 
 import os
 import sys
+
+import windb2.util
+
 try:
     sys.path.append(os.environ['WINDB2_HOME'])
 except KeyError:
@@ -163,10 +166,10 @@ heightCount = 1
         
 # Create the moving average
 if int(args.obsPeriodSec) < 360:
-  movingAvg = movingAverageFromMovingWindow(numpy.array(plot.none2NaN(obsData[:,2]),dtype=numpy.float), 360, 0.05)
+  movingAvg = movingAverageFromMovingWindow(numpy.array(windb2.util.none2NaN(obsData[:, 2]), dtype=numpy.float), 360, 0.05)
 else:
   # No moving average required if the obsPeriodSec is >= 360 s
-  movingAvg = numpy.array(plot.none2NaN(obsData[:,2]))
+  movingAvg = numpy.array(windb2.util.none2NaN(obsData[:, 2]))
   movingAvg = ma.masked_where(numpy.isnan(movingAvg), movingAvg)
 
 # Masks for the directions annotations, where the data are above 2.5 knots (above "calm and variable")

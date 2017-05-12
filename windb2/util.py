@@ -175,3 +175,16 @@ def get_cardinal_from_deg(dir):
         return 'NW'
     else:
         return None
+
+
+def none2NaN(x):
+    """Converts None objects in a 1D array to nan, for use in  NumPy arrays. Returns an array.
+    Found at: http://scienceoss.com/convert-none-to-nan-for-use-in-numpy-arrays/"""
+    import numpy as np
+    newlist = []
+    for i in x:
+        if i is not None:
+            newlist.append(i)
+        else:
+            newlist.append(np.nan)
+    return np.array(newlist)

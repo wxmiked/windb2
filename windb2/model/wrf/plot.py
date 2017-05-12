@@ -11,21 +11,12 @@
 # using the NCAR PyNGL Python library.
 #
 import logging
+
 import matplotlib
+
 from windb2 import util
+from windb2.util import none2NaN
 
-
-def none2NaN(x):
-    """Converts None objects in a 1D array to nan, for use in  NumPy arrays. Returns an array.
-    Found at: http://scienceoss.com/convert-none-to-nan-for-use-in-numpy-arrays/"""
-    import numpy as np
-    newlist = []
-    for i in x:
-        if i is not None:
-            newlist.append(i)
-        else:
-            newlist.append(np.nan)
-    return np.array(newlist)
 
 def plotBuoyWRFWindSpeedPerMonth(yearNum, monthNum, timeDeltaMinutes, wrfDomain, wrfGeomKey, wrfHeight, buoyDomain, curs):
    """Creates a hourly wind speed average and power curve plot for a particular wind farm"""
@@ -59,7 +50,7 @@ def plotBuoyWRFWindSpeedPerMonth(yearNum, monthNum, timeDeltaMinutes, wrfDomain,
    
    # Get rid of the None because they cannot be used in masked arrays, convert to NaNs
    for i in range(wrfBuoyWind.shape[1]):
-       wrfBuoyWind[:,i] = none2NaN(wrfBuoyWind[:,i])
+       wrfBuoyWind[:,i] = none2NaN(wrfBuoyWind[:, i])
 
    # Get the height of the buoy data (and assume they are all the same from this location)
    buoyHeightSql = "SELECT DISTINCT(height) FROM wind_" + str(buoyDomain)
@@ -197,8 +188,6 @@ def plotBuoyWRFWindSpeedPerMonth(yearNum, monthNum, timeDeltaMinutes, wrfDomain,
 def createHistogramForTimePeriod(timeSeriesData, nBins, barColor, title, fileName):
 
     import numpy as np
-    import matplotlib
-    import matplotlib.mlab as mlab
     import matplotlib.pyplot as plt
 
     # Some constants used through
