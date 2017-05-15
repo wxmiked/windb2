@@ -2,8 +2,7 @@ CREATE TABLE WindError (
 
   wrfDomain INT REFERENCES Domain(key),
   buoyDomain INT REFERENCES Domain(key),
-  year INT,
-  month INT,
+  day DATE,
   wrfAvg REAL,
   wrfAvg_u REAL,
   wrfAvg_v REAL,
