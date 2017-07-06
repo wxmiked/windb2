@@ -39,7 +39,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
              ORDER BY x_coords""".format(nInputLong, domainNum)
     curs.execute(sql)
     results = curs.fetchall()
-    wrfX = np.array(results)
+    wrfX = np.array(results)[:,0]
     sql = """SELECT generate_series(y.min::int, y.max::int,(y.max::int - y.min::int)/({} - 1)) as y_coords
              FROM (SELECT min(st_y(geom)), max(st_y(geom)), resolution 
                    FROM horizgeom h, domain d
@@ -48,7 +48,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
              ORDER BY y_coords""".format(nInputLat, domainNum)
     curs.execute(sql)
     results = curs.fetchall()
-    wrfY = np.array(results)
+    wrfY = np.array(results)[:,0]
     
     # Get the SRID of the WRF domain
     sql= """SELECT proj4text FROM spatial_ref_sys WHERE srid=(SELECT st_srid(geom) FROM horizgeom WHERE domainkey=""" + str(domainNum) + """ LIMIT 1)"""
@@ -58,7 +58,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
     # Change the WRF coordinates of the regular long, lat grid
     # Great tutorial on Basemap Proj4 transformations here: http://all-geo.org/volcan01010/2012/11/change-coordinates-with-pyproj/
     wrfProj4 = pyproj.Proj(wrfProj4Str)
-    latGrid, longGrid = np.meshgrid(outputLong, outputLat)
+    longGrid, latGrid = np.meshgrid(outputLong, outputLat)
     regGridInWrfX, regGridInWrfY = wrfProj4(longGrid, latGrid)
     
     return wrfX, wrfY, regGridInWrfX, regGridInWrfY
