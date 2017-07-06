@@ -58,8 +58,53 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
     # Change the WRF coordinates of the regular long, lat grid
     # Great tutorial on Basemap Proj4 transformations here: http://all-geo.org/volcan01010/2012/11/change-coordinates-with-pyproj/
     wrfProj4 = pyproj.Proj(wrfProj4Str)
-    longGrid, latGrid = np.meshgrid(outputLong, outputLat)
+    latGrid, longGrid = np.meshgrid(outputLong, outputLat)
     regGridInWrfX, regGridInWrfY = wrfProj4(longGrid, latGrid)
     
     return wrfX, wrfY, regGridInWrfX, regGridInWrfY
-    
+
+def transformWrfProj(curs, domainNum, wrfLong, wrfLat, proj='epsg_4326'):
+    """Uses pyproj to transform from WRF Lambert Conformal Conic to a new projection.
+
+    Args:
+        curs: WinDB2 cursor
+        domainNum: WinDB2 domain number
+        wrfLong: 1D or 2D Numpy array of WRF longitudes
+        wrfLat: 1D or 2D Numpy array of WRF longitudes
+        proj: Defaults to WGS84, use a pyproj legal projection string to change e.g. proj='epsg:4326'
+
+    Returns:
+        Reprojected long and lat arrays in of the same dimension of the input data
+
+    """
+    import numpy as np
+    import mpl_toolkits.basemap.pyproj as pyproj
+
+    # Temporarily convert to 1D if we've been passed a grid
+    if len(wrfLong.shape) == 2 and len(wrfLat.shape) == 2:
+        twoDToOneD= True
+        wrfLongShape = wrfLong.shape
+        wrfLong = wrfLong.ravel()
+        wrfLatShape = wrfLat.shape
+        wrfLat = wrfLat.ravel()
+    else:
+        twoDToOneD = False
+
+    # Get the SRID of the WRF domain
+    sql = """SELECT proj4text FROM spatial_ref_sys WHERE srid=(SELECT st_srid(geom) FROM horizgeom WHERE domainkey=""" + str(
+        domainNum) + """ LIMIT 1)"""
+    curs.execute(sql)
+    wrfProj4Str = curs.fetchone()[0]
+
+    # Create the WRF projection
+    wrfProj4 = pyproj.Proj(wrfProj4Str)
+
+    # Transform from WRF to WGS84
+    wrfWgs84Lon, wrfWgs84Lat = pyproj.transform(wrfProj4, pyproj.Proj(init='epsg:4326'), wrfLong, wrfLat)
+
+    # Convert back to 2D if necessary
+    if twoDToOneD:
+        wrfWgs84Lon = np.reshape(wrfWgs84Lon, wrfLongShape)
+        wrfWgs84Lat = np.reshape(wrfWgs84Lat, wrfLatShape)
+
+    return wrfWgs84Lon, wrfWgs84Lat
