@@ -4,7 +4,7 @@ Wind Database version 2 (WinDB2)
 # Contact
 Mike Dvorak
 [Sail Tactics](http://sailtactics.com)
-[Contact](http://sailtactics.com/support)
+[Contact](https://app.sailtactics.com/support)
 
 # Overview
 
