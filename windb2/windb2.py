@@ -169,7 +169,7 @@ class WinDB2:
 
     def get_resolution(self, domain):
         """Returns the resolution of the domain and the units"""
-        sql = "SELECT resolution, units FROM domain"
+        sql = "SELECT resolution, units FROM domain WHERE key={}".format(domain)
         self.curs.execute(sql)
         result = self.curs.fetchone()
         if result is None:
