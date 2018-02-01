@@ -16,7 +16,7 @@ As of 2016-06-13, the basic functionality from WinDB1 has been reimplmented usin
 
 # Demo
 
-WinDB2 is current driving the entire backend of the sailing-wind forecasting site [Sail Tactics](http://sailtactics.com). You an see an example interactive forecast of the forecast output for [San Francisco](https://us.sailtactics.com/forecasts/sample) and [Sydney](https://au.sailtactics.com/forecasts/sample).
+WinDB2 is current driving the entire backend of the sailing-wind forecasting site [Sail Tactics](http://sailtactics.com). You an see an example interactive forecast of the forecast output for [San Francisco](https://app.sailtactics.com/forecasts/sample/us-sfbay).
 
 By using WinDB(1) and WinDB2 on on the Sail Tactics website, it has been possible to keep all 200-m resolution WRF forecast for San Francisco Bay since February 2014 online in a single Amazon RDS PostgreSQL database, queryable on a moments notice. 
 
