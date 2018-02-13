@@ -6,7 +6,7 @@
 # mike@sailorsenergy.com
 #
 # Created: 2008-10-28
-# Modified: 2015-12-24
+# Modified: 2018-02-13
 #
 #
 # Description:  Creates an inventory to check the integrity of the WinDB2.
@@ -28,7 +28,8 @@ parser.add_argument('dbHost', help='Database hostname')
 parser.add_argument('dbUser', help='Database user')
 parser.add_argument('dbName', help='Database name')
 parser.add_argument('-p', '--port', type=int, default='5432', help='Port for WinDB2 connection')
-parser.add_argument('-d', '--dir', type=str, default='domain-inventory', help='Directory name to store the inventory in.')
+parser.add_argument('-d', '--dir', type=str, default='domain-inventory', help='Directory name to store the inventory in')
+parser.add_argument('-t', '--table', type=str, default='wind', help='Table name to create the inventory from (default is "wind")')
 args = parser.parse_args()
 
 # Connect to the WinDB
@@ -54,10 +55,10 @@ for domain in domains:
     # Create the inventory
     print('Calculating for domain: {}'.format(domain[0]))
     sql="""SELECT date_part('year', t), date_part('month', t), date_part('day', t) AS t_utc, count(*)
-           FROM wind_{}
+           FROM {}_{}
            GROUP BY date_part('year', t), date_part('month', t), date_part('day', t)
            ORDER BY date_part('year', t), date_part('month', t), date_part('day', t)
-           """.format(domain[0])
+           """.format(args.table, domain[0])
     windb2.curs.execute(sql)
 
     # Write the rows out to CSV
