@@ -65,12 +65,14 @@ class InsertWRF(Insert):
             x_coord_array = ncfile.groups['WRF']['XLONG']
             y_coord_array = ncfile.groups['WRF']['XLAT']
             height_array = ncfile.variables['height']
+            init_t = datetime.strptime(ncfile.groups['WRF'].SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S')
         elif file_type== 'wrf':
             nlong = len(ncfile.dimensions['west_east'])
             nlat = len(ncfile.dimensions['south_north'])
             x_coord_array = ncfile['XLONG']
             y_coord_array = ncfile['XLAT']
             height_array = numpy.array([10.]) # TODO this is hardwired for WRF currently
+            init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S')
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
             u = ncfile.variables['eastward_wind']
             v = ncfile.variables['northward_wind']
@@ -90,13 +92,15 @@ class InsertWRF(Insert):
             if mask is not None:
                 self.mask_domain(domain_key, mask)
 
-        # Create a new table if necessary
+        # Create a new table if necessary and add an initialization time column
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
             if not self.windb2.table_exists('wind' + '_' + domain_key):
                 self.create_new_table(domain_key, table_name, ('speed', 'direction'), ('real', 'smallint'))
+                self._create_initialization_time_column(table_name, domain_key)
         elif file_type == 'wrf':
             if not self.windb2.table_exists('{}_{}'.format(table_name, domain_key)):
                 self.create_new_table(domain_key, table_name, ('value',), ('real',))
+                self._create_initialization_time_column(table_name, domain_key)
         elif file_type == 'windb2':
             logger.error('Unimplemented variable:' + var_name)
             sys.exit(-1)
@@ -123,7 +127,7 @@ class InsertWRF(Insert):
         for t in time_char_array:
 
             # Create a datetime from the WRF string
-            t = datetime.strptime(t.decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
+            t = datetime.strptime(t, '%Y-%m-%d_%H:%M:%S')
 
             # Zero the seconds if asked to
             if zero_seconds:
@@ -139,11 +143,14 @@ class InsertWRF(Insert):
             for h in self.config.get_float_list('WINDB2', 'heights'):
 
                 # We actually need the index of the height, not the actual height itself
-                try:
-                    z = numpy.argwhere(ncfile.variables['height'][:] == h)[0, 0]
-                except IndexError:
-                    logger.error('Height {} to insert does not exist in WinDB2 file'.format(h))
-                    sys.exit(-1)
+                if file_type == 'windb2':
+                    try:
+                        z = numpy.argwhere(ncfile.variables['height'][:] == h)[0, 0]
+                    except IndexError:
+                        logger.error('Height {} to insert does not exist in WinDB2 file'.format(h))
+                        sys.exit(-1)
+                elif file_type == 'wrf':
+                    z = 0
 
                 counter = 0
 
@@ -165,12 +172,13 @@ class InsertWRF(Insert):
 
                                 # Add this row to be inserted into the database
                                 # Note that we negate U and V so they exist in WinDB2 as the vernacular "coming from" wind direction
-                                print('{}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y],
+                                print('{}, {}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y],
                                                                       t.strftime('%Y-%m-%d %H:%M:%S %Z'),
                                                                       util.speed(u[tCount, z, y, x], v[tCount, z, y, x]),
                                                                       int(util.calc_dir_deg(-u[tCount, z, y, x],
                                                                       -v[tCount, z, y, x])),
-                                                                      height_array[z]), file=tempFile)
+                                                                      height_array[z],
+                                                                      init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
                                 counter += 1
 
                         elif file_type == 'wrf':
@@ -178,16 +186,16 @@ class InsertWRF(Insert):
 
                                 # Add this row to be inserted into the database
                                 #TODO height needs to be updated for wrfout file variables
-                                print(domain_key, ",", horizGeomKey[x, y], ",",  t.strftime('%Y-%m-%d %H:%M:%S %Z'), ",",
-                                      ncVariable[tCount, y, x], ",", 10, file=tempFile)
+                                print('{}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y], t.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                                      ncVariable[tCount, y, x], 10, init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
                                 counter += 1
 
                 # Insert the data
                 tempFile.flush()
                 if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
-                    insertColumns = columns=('domainkey', 'geomkey', 't', 'speed', 'direction', 'height')
+                    insertColumns = columns=('domainkey', 'geomkey', 't', 'speed', 'direction', 'height', 'init')
                 elif file_type == 'wrf':
-                    insertColumns = columns=('domainkey', 'geomkey', 't', 'value', 'height')
+                    insertColumns = columns=('domainkey', 'geomkey', 't', 'value', 'height', 'init')
                 try:
                     self.windb2.curs.copy_from(open(tempFile.name, 'r'), table_name + '_' + domain_key, sep=',', columns=insertColumns)
                 except psycopg2.IntegrityError as e:
@@ -241,3 +249,11 @@ class InsertWRF(Insert):
             tCount += 1
 
         return timeValuesToReturn
+
+    def _create_initialization_time_column(self, table_name, domain_key):
+        """Adds the initialization time column to allow for multiple forecasts to coexist"""
+        self.windb2.curs.execute('ALTER TABLE {}_{} ADD COLUMN init TIMESTAMP WITH TIME ZONE'.format(table_name, domain_key))
+        self.windb2.curs.execute('ALTER TABLE {}_{} DROP CONSTRAINT {}_{}_domainkey_geomkey_t_height_key'
+                                 .format(table_name, domain_key, table_name, domain_key))
+        self.windb2.curs.execute('ALTER TABLE {}_{} ADD UNIQUE(domainkey, geomkey, t, height, init)'.format(table_name, domain_key))
+

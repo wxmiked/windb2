@@ -66,12 +66,24 @@ ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
 # Open the WRF netCDF file
 ncfile = Dataset(ncfile_cleansed, 'r')
 
+# Determine the file type
+if re.match(r'.*wrfout_.+[0-9][0-9]$', ncfile_cleansed):
+    file_type = 'wrf'
+elif re.match(r'.*wrfout_.+height-interp\.nc', ncfile_cleansed):
+    file_type = 'windb2'
+else:
+    msg = 'File provided is neither a WRF or WinDB2 file: {}'.format(ncfile_cleansed)
+    print(msg)
+    logger.error(msg)
+    sys.exit(-1)
+
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
+# TODO the name(s) of the variable to be inserted needs to be dynamic
 try:
-    inserter.insert_variable(ncfile, 'WIND', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
-                             mask=args.mask, zero_seconds=args.zero_seconds)
+    inserter.insert_variable(ncfile, 'PSFC', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
+                             mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
 except configparser.NoSectionError:
     msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
     print(msg)
     logger.error(msg)
-    sys.exit(-1)
+    sys.exit(-2)
