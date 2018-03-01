@@ -55,7 +55,10 @@ class Windb2WrfConfigParser(configparser.SafeConfigParser):
     def get_float_list(self, section, var):
         """Returns a list of floats that are separated by a comma"""
         list_str = self.get(section, var).split(',')
-        return [float(item) for item in list_str]
+        try:
+            return [float(item) for item in list_str]
+        except ValueError:
+            return [float(item) for item in list_str[:-1]]  # A number and a comma returns a ['10',''] so ignore the last element
 
 
     def get_str_list(self, section, var):
