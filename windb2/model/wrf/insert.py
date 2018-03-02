@@ -248,7 +248,7 @@ class InsertWRF(Insert):
             # Increment the time
             tCount += 1
 
-        return timeValuesToReturn
+        return timeValuesToReturn, domain_key
 
     def _create_initialization_time_column(self, table_name, domain_key):
         """Adds the initialization time column to allow for multiple forecasts to coexist"""

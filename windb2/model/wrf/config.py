@@ -22,6 +22,7 @@ class Windb2WrfConfigParser(configparser.SafeConfigParser):
     interp_heights = '5.0,10.0,50.0,90.0'
     windb2_heights = '10.0'
     interp_vars = 'U'
+    wrf_vars = 'PSFC,'
 
     def __init__(self):
         super().__init__()
@@ -41,6 +42,10 @@ class Windb2WrfConfigParser(configparser.SafeConfigParser):
         config_parser.set('WINDB2', 'dbhost', 'UNSET')
         config_parser.set('WINDB2', 'dbname', 'UNSET')
         config_parser.set('WINDB2', 'dbuser', 'UNSET')
+
+        # Interpolation section
+        config_parser.add_section('WRF')
+        config_parser.set('WRF', 'vars', Windb2WrfConfigParser.interp_vars)
 
         # Logging section
         config_parser.add_section('LOGGING')
