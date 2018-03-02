@@ -32,6 +32,9 @@ class WinDB2:
         
         # Connect to the database
         self.curs = self.conn.cursor()
+
+        # Always use UTC for the time zone
+        self.curs.execute('SET TIME ZONE \'UTC\'')
         
         return
     
