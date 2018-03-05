@@ -35,6 +35,8 @@ class WinDB2:
 
         # Always use UTC for the time zone
         self.curs.execute('SET TIME ZONE \'UTC\'')
+        self.curs.execute('SHOW TIMEZONE')
+        print('Time zone being used for this session: {}'.format(self.curs.fetchone()[0]))
         
         return
     

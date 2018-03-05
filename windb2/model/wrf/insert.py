@@ -6,6 +6,7 @@ import re
 import sys
 import tempfile
 from datetime import datetime
+import pytz
 
 import psycopg2
 import numpy
@@ -36,7 +37,7 @@ class InsertWRF(Insert):
        *
        * windb2Conn - Connection to a WinDB2 database.
        * ncfile - Either an open file or a string name of a file to open.
-       * var_name - Name of WinDB2 supported variable (currently WIND, THETA, RHO).
+       * var_name - Name of WinDB2 supported variable or a WRF 3D variable (currently WIND, THETA, RHO).
        * table_name - Name of the table to create (appended with '_' + $domain_key).
        * domain_key - Existing domain key in the database. If left blank, a new domain will be created.
        * replace_data - Deletes data for the same time in the database if True. Useful for freshening data.
@@ -65,14 +66,14 @@ class InsertWRF(Insert):
             x_coord_array = ncfile.groups['WRF']['XLONG']
             y_coord_array = ncfile.groups['WRF']['XLAT']
             height_array = ncfile.variables['height']
-            init_t = datetime.strptime(ncfile.groups['WRF'].SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S')
+            init_t = datetime.strptime(ncfile.groups['WRF'].SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         elif file_type== 'wrf':
             nlong = len(ncfile.dimensions['west_east'])
             nlat = len(ncfile.dimensions['south_north'])
             x_coord_array = ncfile['XLONG']
             y_coord_array = ncfile['XLAT']
             height_array = numpy.array([10.]) # TODO this is hardwired for WRF currently
-            init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S')
+            init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
             u = ncfile.variables['eastward_wind']
             v = ncfile.variables['northward_wind']
@@ -98,7 +99,7 @@ class InsertWRF(Insert):
                 self.create_new_table(domain_key, table_name, ('speed', 'direction'), ('real', 'smallint'))
                 self._create_initialization_time_column(table_name, domain_key)
         elif file_type == 'wrf':
-            if not self.windb2.table_exists('{}_{}'.format(table_name, domain_key)):
+            if not self.windb2.table_exists('{}_{}'.format(table_name.lower(), domain_key)):
                 self.create_new_table(domain_key, table_name, ('value',), ('real',))
                 self._create_initialization_time_column(table_name, domain_key)
         elif file_type == 'windb2':
@@ -127,7 +128,7 @@ class InsertWRF(Insert):
         for t in time_char_array:
 
             # Create a datetime from the WRF string
-            t = datetime.strptime(t, '%Y-%m-%d_%H:%M:%S')
+            t = datetime.strptime(t, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
 
             # Zero the seconds if asked to
             if zero_seconds:
@@ -137,7 +138,7 @@ class InsertWRF(Insert):
             timeValuesToReturn.append(t.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
 
             # Info
-            print('Processing time: ', timeValuesToReturn[-1])
+            print('Processing time for {}: {}'.format(var_name, timeValuesToReturn[-1]))
 
             # Iterate through the x,y, and timearr and insert the WRF variable
             for h in self.config.get_float_list('WINDB2', 'heights'):
@@ -185,7 +186,7 @@ class InsertWRF(Insert):
                             if not numpy.isnan(ncVariable[tCount, y, x]):
 
                                 # Add this row to be inserted into the database
-                                #TODO height needs to be updated for wrfout file variables
+                                #TODO drop height for WRF variables
                                 print('{}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y], t.strftime('%Y-%m-%d %H:%M:%S %Z'),
                                       ncVariable[tCount, y, x], 10, init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
                                 counter += 1
@@ -201,7 +202,7 @@ class InsertWRF(Insert):
                 except psycopg2.IntegrityError as e:
 
                     # Delete the duplicate data
-                    errorTest = 'duplicate key value violates unique constraint "' + table_name + "_" + domain_key + '_domainkey_geomkey_t_height_key"'
+                    errorTest = 'duplicate key value violates unique constraint "' + table_name.lower() + "_" + domain_key + '_domainkey_geomkey_t_height_init_key"'
                     if re.search(errorTest, str(e.pgerror)):
 
                         # Delete the data and retry the insert if asked to replace data in the function call

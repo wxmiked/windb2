@@ -254,7 +254,7 @@ class Insert(object):
         
         # Create a check on the table (for some reason we have to do almost the same thing twice
         self.windb2.curs.execute("CREATE TABLE " + tableName + "_" + str(domainKey) + " (CHECK (domainkey=" + str(domainKey) + ")) INHERITS (GeoVariable)")
-        
+
         # Add a unique constraint to the table, so we don't get duplicates (this in theory
         # should be copied over from the inherited windspeed table, but it isn't in the
         # current postgres implementation
