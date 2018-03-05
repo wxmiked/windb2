@@ -16,12 +16,13 @@ Configuration files has to be in the current working directory.
 import configparser
 import logging
 
-class Windb2WrfConfigParser(configparser.SafeConfigParser):
+
+class Windb2WrfConfigParser(configparser.ConfigParser):
 
     """Default heights, specified here for unit testing purposes"""
     interp_heights = '5.0,10.0,50.0,90.0'
-    windb2_heights = '10.0'
-    interp_vars = 'U'
+    windb2_heights = '10.0,60.0'
+    interp_vars = 'WIND'
     wrf_vars = 'PSFC,'
 
     def __init__(self):
@@ -29,7 +30,7 @@ class Windb2WrfConfigParser(configparser.SafeConfigParser):
 
     @staticmethod
     def writeNewConfigFile(config_filename):
-        config_parser = configparser.ConfigParser()
+        config_parser = configparser.ConfigParser(inline_comment_prefixes='#')
 
         # Interpolation section
         config_parser.add_section('INTERP')
@@ -39,9 +40,7 @@ class Windb2WrfConfigParser(configparser.SafeConfigParser):
         # WinDB2 section
         config_parser.add_section('WINDB2')
         config_parser.set('WINDB2', 'heights', Windb2WrfConfigParser.windb2_heights)
-        config_parser.set('WINDB2', 'dbhost', 'UNSET')
-        config_parser.set('WINDB2', 'dbname', 'UNSET')
-        config_parser.set('WINDB2', 'dbuser', 'UNSET')
+        config_parser.set('INTERP', 'vars', Windb2WrfConfigParser.interp_vars)
 
         # Interpolation section
         config_parser.add_section('WRF')

@@ -72,6 +72,7 @@ class InsertWRF(Insert):
             nlat = len(ncfile.dimensions['south_north'])
             x_coord_array = ncfile['XLONG']
             y_coord_array = ncfile['XLAT']
+            height_array = numpy.array([0.])
             init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
             u = ncfile.variables['eastward_wind']
@@ -102,7 +103,7 @@ class InsertWRF(Insert):
                 self.create_new_table(domain_key, table_name, ('value',), ('real',))
                 self._create_initialization_time_column(table_name, domain_key)
         elif file_type == 'windb2':
-            logger.error('Unimplemented variable:' + var_name)
+            logger.error('Unimplemented variable: {}'.format(var_name))
             sys.exit(-1)
 
         # Make sure it's a string so that we don't have concatenation problems later
@@ -140,7 +141,7 @@ class InsertWRF(Insert):
             print('Processing time for {}: {}'.format(var_name, timeValuesToReturn[-1]))
 
             # Iterate through the x,y, and timearr and insert the WRF variable
-            for h in self.config.get_float_list('WINDB2', 'heights'):
+            for h in height_array:
 
                 # We actually need the index of the height, not the actual height itself
                 if file_type == 'windb2':

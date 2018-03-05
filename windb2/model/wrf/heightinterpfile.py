@@ -185,7 +185,7 @@ class HeightInterpFile:
         # New variables in the netCDF file
         # Names according to the Climate and Forecast (CF) Convention v29:
         # http://cfconventions.org/Data/cf-standard-names/29/build/cf-standard-name-table.html
-        if self.windb2_config.contains_interp_var('UV'):
+        if self.windb2_config.contains_interp_var('WIND'):
             new_u = nc_outfile.createVariable('eastward_wind', 'f', dimensions=('Time', 'height', 'y', 'x'))
             new_v = nc_outfile.createVariable('northward_wind', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_uv(new_u, new_v)
@@ -230,7 +230,7 @@ class HeightInterpFile:
                 for x in range(height_eta_half_above_ground[t].shape[2]):
 
                     # Interpolate the wind fields
-                    if self.windb2_config.contains_interp_var('UV'):
+                    if self.windb2_config.contains_interp_var('WIND'):
 
                         # Select interpolation for lower PBL
                         if lower_pbl_interp=='log-law':
