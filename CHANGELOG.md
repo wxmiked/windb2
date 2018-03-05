@@ -9,3 +9,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * timezone is now set to UTC for all connections
 * WRF model now contains initialization times
 * improved and clarified `windb2-wrf.config` variables-to-insert options
+* set 3D WRF vars (2D space plus time) to height zero

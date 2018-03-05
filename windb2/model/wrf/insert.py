@@ -72,7 +72,6 @@ class InsertWRF(Insert):
             nlat = len(ncfile.dimensions['south_north'])
             x_coord_array = ncfile['XLONG']
             y_coord_array = ncfile['XLAT']
-            height_array = numpy.array([10.]) # TODO this is hardwired for WRF currently
             init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
             u = ncfile.variables['eastward_wind']
@@ -186,9 +185,8 @@ class InsertWRF(Insert):
                             if not numpy.isnan(ncVariable[tCount, y, x]):
 
                                 # Add this row to be inserted into the database
-                                #TODO drop height for WRF variables
                                 print('{}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y], t.strftime('%Y-%m-%d %H:%M:%S %Z'),
-                                      ncVariable[tCount, y, x], 10, init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
+                                      ncVariable[tCount, y, x], 0, init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
                                 counter += 1
 
                 # Insert the data
