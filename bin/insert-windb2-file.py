@@ -66,12 +66,34 @@ ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
 # Open the WRF netCDF file
 ncfile = Dataset(ncfile_cleansed, 'r')
 
-# Insert the file, domainKey should be None if it wasn't set, which will create a new domain
-try:
-    inserter.insert_variable(ncfile, 'WIND', 'wind', domain_key=args.domain_key, replace_data=args.overwrite,
-                             mask=args.mask, zero_seconds=args.zero_seconds)
-except configparser.NoSectionError:
-    msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+# Determine the file type
+if re.match(r'.*wrfout_.+[0-9][0-9]$', ncfile_cleansed):
+    file_type = 'wrf'
+elif re.match(r'.*wrfout_.+height-interp\.nc', ncfile_cleansed):
+    file_type = 'windb2'
+else:
+    msg = 'File provided is neither a WRF or WinDB2 file: {}'.format(ncfile_cleansed)
     print(msg)
     logger.error(msg)
     sys.exit(-1)
+
+# Vars to read
+if file_type == 'windb2':
+    vars = windb2_config.get_str_list('WINDB2', 'vars')
+elif file_type == 'wrf':
+    vars = windb2_config.get_str_list('WRF', 'vars')
+
+# Insert the file, domainKey should be None if it wasn't set, which will create a new domain
+for var in vars:
+    try:
+        (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, var, domain_key=args.domain_key, replace_data=args.overwrite,
+                                 mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
+
+        # Set the domain key so that we don't create the same domain twice
+        if not args.domain_key:
+            args.domain_key = domain_key_returned
+    except configparser.NoSectionError:
+        msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+        print(msg)
+        logger.error(msg)
+        sys.exit(-2)
