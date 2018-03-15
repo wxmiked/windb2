@@ -6,13 +6,19 @@ __author__ = 'Mike Dvorak'
 
 import numpy
 from netCDF4 import Dataset
-from windb2.model.wrf.config import Windb2WrfConfigParser
+from windb2.model.wrf import config
 import windb2.model.wrf.constants as constants
 import logging
 
+wrf_config = config.Windb2WrfConfigParser()
+wrf_config.read('windb2-wrf.conf')
+
 # Set up logging for this package
 logger = logging.getLogger('windb2')
-logger.setLevel(logging.INFO)
+try:
+    logger.setLevel(wrf_config['LOGGER.windb2'])
+except KeyError:
+    logger.setLevel(logging.WARNING)
 logging.basicConfig()
 
 
@@ -93,7 +99,7 @@ class HeightInterpFile:
         pressure = nc_infile.variables['P'][:] + nc_infile.variables['PB'][:]
 
         # Calculate height of the first eta half level, nearest the surface
-        # TODO document 300 K in the following term
+        # WRF potential temperature is shifted by 300 K: http://www2.mmm.ucar.edu/wrf/users/docs/user_guide_V3/users_guide_chap5.htm#special_fields
         pressure_surface = nc_infile.variables['PSFC'][:]
         temperature_bottom_layer = self.calc_mean_temperature_across_layer(nc_infile.variables['T2'][:],
                                                                            pressure_surface,

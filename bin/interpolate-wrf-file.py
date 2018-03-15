@@ -23,12 +23,15 @@ sys.path.append(os.path.join(dir, '../'))
 
 import argparse
 from windb2.model.wrf import heightinterpfile
+from windb2.model.wrf.copyvar import copyvar
 from windb2.model.wrf import config
 import logging
 
 # Get the command line opts
 parser = argparse.ArgumentParser()
 parser.add_argument("ncfile", type=str, help="WRF netCDF filename to interpolate")
+parser.add_argument("-c", "--copy", help="Copy WRF variables to the interp file",
+                    action="store_true")
 args = parser.parse_args()
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
@@ -45,7 +48,17 @@ ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
 try:
     heightinterpfile.HeightInterpFile(wrf_config).interp_file(ncfile_cleansed)
 except configparser.NoSectionError:
-    msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+    msg = 'Missing/invalid INTERP section in windb2-wrf.conf file.'
     print(msg)
     logger.error(msg)
     sys.exit(-1)
+
+# Copy of WRF vars
+if args.copy:
+    try:
+        copyvar(wrf_config.get_str_list('WRF', 'vars'), ncfile_cleansed, ncfile_cleansed + '-height-interp.nc')
+    except configparser.NoSectionError:
+        msg = 'Missing/invalid WRF section windb2-wrf.conf file.'
+        print(msg)
+        logger.error(msg)
+        sys.exit(-2)
