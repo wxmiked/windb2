@@ -148,6 +148,11 @@ class HeightInterpFile:
         ncvar_theta.longdescription = 'No help available.'
         ncvar_theta.units = 'kg m-3'
 
+    @staticmethod
+    def _set_metadata_dpt(ncvar_theta):
+        ncvar_theta.description = 'Dew point temperature',
+        ncvar_theta.longdescription = 'Dew point temperature is the temperature at which a parcel of air reaches saturation upon being cooled at constant pressure and specific humidity.'
+        ncvar_theta.units = 'K'
 
     # @profile
     def interp_file(self, wrf_filename):
@@ -198,6 +203,9 @@ class HeightInterpFile:
         if self.windb2_config.contains_interp_var('RHO'):
             new_rho = nc_outfile.createVariable('air_density', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_rho(new_rho)
+        if self.windb2_config.contains_interp_var('DPT'):
+            new_dpt = nc_outfile.createVariable('dew_point_temperature', 'f', dimensions=('Time', 'height', 'y', 'x'))
+            HeightInterpFile. _set_metadata_dpt(new_dpt)
 
         # Calculate the eta half-heights
         height_eta_half_above_ground = self.calc_eta_heights(nc_infile)
@@ -257,12 +265,27 @@ class HeightInterpFile:
                     # Use surface pressure at the surface at height zero
                     if self.windb2_config.contains_interp_var('PRES'):
                         new_pres[t, :, y, x] = numpy.interp(self.heights_to_interp,
-                                                         numpy.concatenate(([0],
-                                                                            height_eta_half_above_ground[t, :, y, x])),
-                                                         numpy.concatenate(([nc_infile['PSFC'][t, y, x]],
-                                                                            nc_infile['P'][t, :, y, x] +
-                                                                            nc_infile['PB'][t, :, y, x])))
+                                                            numpy.concatenate(([0],
+                                                                               height_eta_half_above_ground[t, :, y, x])),
+                                                            self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x))
 
+                    # Interpolate dew point
+                    # Use surface pressure at t he surface at height zero
+                    if self.windb2_config.contains_interp_var('DPT'):
+
+                        # Combine 2 m and 3D water
+                        qvapor = numpy.concatenate(([nc_infile['Q2'][t, y, x]], nc_infile['QVAPOR'][t, :, y, x]))
+
+                        # Calculate the dew point using the equation found in this post: http://forum.wrfforum.com/viewtopic.php?f=7&t=1862
+                        A = 2.53e11 # Pa
+                        B = 5.42e3 # K
+                        E = 0.622 # (approximated from R'/Rv)
+                        p = self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x) # pressure in Pa
+
+                        new_dpt[t, :, y, x] = numpy.interp(self.heights_to_interp,
+                                                             numpy.concatenate(([0],
+                                                                                height_eta_half_above_ground[t, :, y, x])),
+                                                             B / numpy.log(A*E/(qvapor*p)))
                         # Debug - this takes a ton of time, even if debug mode is off
                         # logger.debug('Grid-to-Earth rotation: u-delta:' + str((1 - u_earth_rotated[t, :, y, x]/u_grid_rotated)*100) +
                         #              '% v-delta:' + str((1 - v_earth_rotated[t, :, y, x]/v_grid_rotated)*100) + '%')
@@ -288,6 +311,12 @@ class HeightInterpFile:
 
         # Close the file
         nc_outfile.close()
+
+    def _calc_pres(self, height_eta_half_above_ground, nc_infile, t, y, x):
+        """Interpolates the pressure at different heights above ground level"""
+        return numpy.concatenate(([nc_infile['PSFC'][t, y, x]],
+                                  nc_infile['P'][t, :, y, x] +
+                                  nc_infile['PB'][t, :, y, x]))
 
     def _rotate_winds(self, nc_infile, u_grid_rotated, v_grid_rotated):
         """Rotates the coordinates from grid-relative to earth-relative."""
