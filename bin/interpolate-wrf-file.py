@@ -36,9 +36,12 @@ args = parser.parse_args()
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
 
-# Set up logging for InsertAbstract
+# Set up logging
 logger = logging.getLogger('windb2')
-logger.setLevel(logging.WARNING)
+try:
+    logger.setLevel(wrf_config['LOGGER']['windb2'])
+except KeyError:
+    logger.setLevel(logging.INFO)
 logging.basicConfig()
 
 # Get rid of escaped colon characters that are often added in Unix shells

@@ -13,14 +13,7 @@ import logging
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
 
-# Set up logging for this package
 logger = logging.getLogger('windb2')
-try:
-    logger.setLevel(wrf_config['LOGGER.windb2'])
-except KeyError:
-    logger.setLevel(logging.WARNING)
-logging.basicConfig()
-
 
 class HeightInterpFile:
     """Vertically interpolates a WRF output files.
