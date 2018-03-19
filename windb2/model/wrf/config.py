@@ -47,9 +47,9 @@ class Windb2WrfConfigParser(configparser.ConfigParser):
         config_parser.set('WRF', 'vars', Windb2WrfConfigParser.interp_vars)
 
         # Logging section
-        config_parser.add_section('LOGGING')
-        config_parser.set('LOGGING', 'interp', 'INFO')
-        config_parser.set('LOGGING', 'windb2', 'INFO')
+        config_parser.add_section('LOGGER')
+        config_parser.set('LOGGER', 'interp', 'INFO')
+        config_parser.set('LOGGER', 'windb2', 'INFO')
 
         # Write the new config file
         with open(config_filename, 'w') as config_new:

@@ -6,15 +6,14 @@ __author__ = 'Mike Dvorak'
 
 import numpy
 from netCDF4 import Dataset
-from windb2.model.wrf.config import Windb2WrfConfigParser
+from windb2.model.wrf import config
 import windb2.model.wrf.constants as constants
 import logging
 
-# Set up logging for this package
-logger = logging.getLogger('windb2')
-logger.setLevel(logging.INFO)
-logging.basicConfig()
+wrf_config = config.Windb2WrfConfigParser()
+wrf_config.read('windb2-wrf.conf')
 
+logger = logging.getLogger('windb2')
 
 class HeightInterpFile:
     """Vertically interpolates a WRF output files.
@@ -93,7 +92,7 @@ class HeightInterpFile:
         pressure = nc_infile.variables['P'][:] + nc_infile.variables['PB'][:]
 
         # Calculate height of the first eta half level, nearest the surface
-        # TODO document 300 K in the following term
+        # WRF potential temperature is shifted by 300 K: http://www2.mmm.ucar.edu/wrf/users/docs/user_guide_V3/users_guide_chap5.htm#special_fields
         pressure_surface = nc_infile.variables['PSFC'][:]
         temperature_bottom_layer = self.calc_mean_temperature_across_layer(nc_infile.variables['T2'][:],
                                                                            pressure_surface,
@@ -149,6 +148,11 @@ class HeightInterpFile:
         ncvar_theta.longdescription = 'No help available.'
         ncvar_theta.units = 'kg m-3'
 
+    @staticmethod
+    def _set_metadata_dpt(ncvar_theta):
+        ncvar_theta.description = 'Dew point temperature',
+        ncvar_theta.longdescription = 'Dew point temperature is the temperature at which a parcel of air reaches saturation upon being cooled at constant pressure and specific humidity.'
+        ncvar_theta.units = 'K'
 
     # @profile
     def interp_file(self, wrf_filename):
@@ -199,6 +203,14 @@ class HeightInterpFile:
         if self.windb2_config.contains_interp_var('RHO'):
             new_rho = nc_outfile.createVariable('air_density', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_rho(new_rho)
+        if self.windb2_config.contains_interp_var('DPT'):
+            new_dpt = nc_outfile.createVariable('dew_point_temperature', 'f', dimensions=('Time', 'height', 'y', 'x'))
+            HeightInterpFile. _set_metadata_dpt(new_dpt)
+        if self.windb2_config.contains_interp_var('CLD'):
+            new_cloud_low = nc_outfile.createVariable('cloud_fraction_low', 'f', dimensions=('Time', 'y', 'x'))
+            new_cloud_mid = nc_outfile.createVariable('cloud_fraction_medium', 'f', dimensions=('Time', 'y', 'x'))
+            new_cloud_high = nc_outfile.createVariable('cloud_fraction_high', 'f', dimensions=('Time', 'y', 'x'))
+            new_cloud_fog = nc_outfile.createVariable('cloud_fraction_fog', 'f', dimensions=('Time', 'y', 'x'))
 
         # Calculate the eta half-heights
         height_eta_half_above_ground = self.calc_eta_heights(nc_infile)
@@ -209,15 +221,16 @@ class HeightInterpFile:
         v_var = nc_infile.variables['V'][:, :, :, :]
 
         # Try and get ZNT which will be used for diagnosing winds below the lowest model level
-        try:
-            znt_var = nc_infile.variables['ZNT'][:, :, :]
-            lower_pbl_interp = 'log-law'
-        except KeyError:
-            lower_pbl_interp = 'log-linear'
+        if self.windb2_config.contains_interp_var('WIND'):
+            try:
+                znt_var = nc_infile.variables['ZNT'][:, :, :]
+                lower_pbl_interp = 'log-law'
+            except KeyError:
+                lower_pbl_interp = 'log-linear'
 
-        # Add the interpolation method for the lowest level
-        new_u.lower_pbl_interp = lower_pbl_interp
-        new_v.lower_pbl_interp = lower_pbl_interp
+            # Add the interpolation method for the lowest level
+            new_u.lower_pbl_interp = lower_pbl_interp
+            new_v.lower_pbl_interp = lower_pbl_interp
 
         # Interpolate each variable from eta-mass coordinates to height coordinates
         u_mass = (u_var[:, :, :, 1:] + u_var[:, :, :, :-1]) / 2.
@@ -258,15 +271,47 @@ class HeightInterpFile:
                     # Use surface pressure at the surface at height zero
                     if self.windb2_config.contains_interp_var('PRES'):
                         new_pres[t, :, y, x] = numpy.interp(self.heights_to_interp,
-                                                         numpy.concatenate(([0],
-                                                                            height_eta_half_above_ground[t, :, y, x])),
-                                                         numpy.concatenate(([nc_infile['PSFC'][t, y, x]],
-                                                                            nc_infile['P'][t, :, y, x] +
-                                                                            nc_infile['PB'][t, :, y, x])))
+                                                            numpy.concatenate(([0],
+                                                                               height_eta_half_above_ground[t, :, y, x])),
+                                                            self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x))
 
-                        # Debug - this takes a ton of time, even if debug mode is off
-                        # logger.debug('Grid-to-Earth rotation: u-delta:' + str((1 - u_earth_rotated[t, :, y, x]/u_grid_rotated)*100) +
-                        #              '% v-delta:' + str((1 - v_earth_rotated[t, :, y, x]/v_grid_rotated)*100) + '%')
+                    # Interpolate dew point
+                    # Use surface pressure at t he surface at height zero
+                    if self.windb2_config.contains_interp_var('DPT'):
+
+                        # Combine 2 m and 3D water
+                        qvapor = numpy.concatenate(([nc_infile['Q2'][t, y, x]], nc_infile['QVAPOR'][t, :, y, x]))
+
+                        # Calculate the dew point using the equation found in this post: http://forum.wrfforum.com/viewtopic.php?f=7&t=1862
+                        A = 2.53e11 # Pa
+                        B = 5.42e3 # K
+                        E = 0.622 # (approximated from R'/Rv)
+                        p = self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x) # pressure in Pa
+
+                        new_dpt[t, :, y, x] = numpy.interp(self.heights_to_interp,
+                                                             numpy.concatenate(([0],
+                                                                                height_eta_half_above_ground[t, :, y, x])),
+                                                             B / numpy.log(A*E/(qvapor*p)))
+
+                    # Calculate the cloud fractions
+                    if self.windb2_config.contains_interp_var('CLD'):
+
+                        # Interpolate cloud fraction every 100 m to make the averaging easy
+                        # Using mid-latitude low, medium, and high cloud heights from Galvin, An Intro. to the Met. and Climate of the Tropics, 2016: http://bit.ly/2tTPJxE
+                        # High: 5k-13k m, Middle: 2k-7k m, Low: 0-2k m
+                        # We are arbitrarily defining Fog as 0-30 m
+                        cloud_high_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 500, height_eta_half_above_ground[t, :, y, x] <= 13000)
+                        cloud_mid_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 2000, height_eta_half_above_ground[t, :, y, x] <= 7000)
+                        cloud_low_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 0, height_eta_half_above_ground[t, :, y, x] <= 200)
+                        cloud_fog_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 0, height_eta_half_above_ground[t, :, y, x] <= 30)
+
+                        cloudfra_interp = numpy.interp(numpy.arange(0, 1.3e4, 100),
+                                                     numpy.concatenate(([0], height_eta_half_above_ground[t, :, y, x])),
+                                                     numpy.concatenate(([0], nc_infile['CLDFRA'][t, :, y, x])))
+                        new_cloud_high[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_high_indices])
+                        new_cloud_mid[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_mid_indices])
+                        new_cloud_low[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_low_indices])
+                        new_cloud_fog[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_fog_indices])
 
                     # Interpolate density if inverse density was written out in WRF or if the theta and P were
                     # calculated above
@@ -282,13 +327,20 @@ class HeightInterpFile:
         u_earth_rotated, v_earth_rotated = self._rotate_winds(nc_infile, u_grid_rotated, v_grid_rotated)
 
         # Write the netCDF vars
-        new_eta_height_coord_var[:, :, :, :] = height_eta_half_above_ground
-        new_height_agl_coord_var[:] = numpy.array(self.windb2_config.get_float_list('INTERP', 'HEIGHTS'))
-        new_u[:, :, :, :] = u_earth_rotated
-        new_v[:, :, :, :] = v_earth_rotated
+        if self.windb2_config.contains_interp_var('WIND'):
+            new_eta_height_coord_var[:, :, :, :] = height_eta_half_above_ground
+            new_height_agl_coord_var[:] = numpy.array(self.windb2_config.get_float_list('INTERP', 'HEIGHTS'))
+            new_u[:, :, :, :] = u_earth_rotated
+            new_v[:, :, :, :] = v_earth_rotated
 
         # Close the file
         nc_outfile.close()
+
+    def _calc_pres(self, height_eta_half_above_ground, nc_infile, t, y, x):
+        """Interpolates the pressure at different heights above ground level"""
+        return numpy.concatenate(([nc_infile['PSFC'][t, y, x]],
+                                  nc_infile['P'][t, :, y, x] +
+                                  nc_infile['PB'][t, :, y, x]))
 
     def _rotate_winds(self, nc_infile, u_grid_rotated, v_grid_rotated):
         """Rotates the coordinates from grid-relative to earth-relative."""

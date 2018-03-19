@@ -27,11 +27,6 @@ from windb2 import windb2
 from windb2.model.wrf import insert, heightinterpfile, config
 import logging
 
-# Set up logging level
-logger = logging.getLogger('windb2')
-logger.setLevel(logging.WARNING)
-logging.basicConfig()
-
 # Get the command line opts
 parser = argparse.ArgumentParser()
 parser.add_argument("db_host", type=str, help="Database hostname")
@@ -56,6 +51,14 @@ windb2.connect()
 # Load a WinDB2 config file
 windb2_config = config.Windb2WrfConfigParser()
 windb2_config.read('windb2-wrf.conf')
+
+# Set up logging
+logger = logging.getLogger('windb2')
+try:
+    logger.setLevel(windb2_config['LOGGER']['windb2'])
+except KeyError:
+    logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 # Create the inserter from this config
 inserter = insert.InsertWRF(windb2, windb2_config)
