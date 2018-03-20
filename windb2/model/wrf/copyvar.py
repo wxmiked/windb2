@@ -26,7 +26,7 @@ def copyvar(wrf_vars, nc_infile, nc_outfile):
 
     # Copy the WRF vars
     for wrf_var in wrf_vars:
-        print('Copying WRF variable {}'.format(wrf_var))
+        logger.info('Copying WRF variable {}'.format(wrf_var))
 
         # Get the variable to copy
         in_var = nc_infile[wrf_var]
@@ -43,6 +43,8 @@ def copyvar(wrf_vars, nc_infile, nc_outfile):
 
     # Close the netCDF files if necessary
     if close_nc_infile:
+        logger.debug('Closing WRF nc_infile')
         nc_infile.close()
     if close_nc_outfile:
+        logger.debug('Closing WinDB2 nc_outfile')
         nc_outfile.close()

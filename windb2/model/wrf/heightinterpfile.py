@@ -21,6 +21,16 @@ class HeightInterpFile:
 
     outfile_extension = "-height-interp.nc"
 
+    # Cloud fraction ranges in meters
+    # Using mid-latitude low, medium, and high cloud heights from Galvin, An Intro. to the Met. and Climate of the Tropics, 2016: http://bit.ly/2tTPJxE
+    # High: 5k-13k m, Middle: 2k-7k m, Low: 0-2k m
+    # We are arbitrarily defining Fog as 0-30 m
+    CLOUD_HEIGHTS = {}
+    CLOUD_HEIGHTS['high'] = {'top': 13000, 'bottom': 5000}
+    CLOUD_HEIGHTS['mid'] = {'top': 7000, 'bottom': 2000}
+    CLOUD_HEIGHTS['low'] = {'top': 2000, 'bottom': 0}
+    CLOUD_HEIGHTS['fog'] = {'top': 30, 'bottom': 0}
+
     eta_height_w = None
     eta_height_mass = None
     heights_to_interp = None
@@ -149,10 +159,20 @@ class HeightInterpFile:
         ncvar_theta.units = 'kg m-3'
 
     @staticmethod
-    def _set_metadata_dpt(ncvar_theta):
-        ncvar_theta.description = 'Dew point temperature',
-        ncvar_theta.longdescription = 'Dew point temperature is the temperature at which a parcel of air reaches saturation upon being cooled at constant pressure and specific humidity.'
-        ncvar_theta.units = 'K'
+    def _set_metadata_dpt(ncvar_dpt):
+        ncvar_dpt.description = 'Dew point temperature',
+        ncvar_dpt.longdescription = 'Dew point temperature is the temperature at which a parcel of air reaches saturation upon being cooled at constant pressure and specific humidity.'
+        ncvar_dpt.units = 'K'
+
+    @staticmethod
+    def _set_metadata_cld(ncvar_cld_dict, cloud_heights):
+        for height in cloud_heights.keys():
+            ncvar_cld_dict[height].description = 'Cloud fraction {}'.format(height),
+            ncvar_cld_dict[height].longdescription = 'Cloud fraction is the fraction of the layer that is covered in clouds from {} to {} m.'\
+                .format(cloud_heights[height]['bottom'], cloud_heights[height]['top'])
+            ncvar_cld_dict[height].units = '1'
+            ncvar_cld_dict[height].cloud_fraction_bottom_m = cloud_heights[height]['bottom']
+            ncvar_cld_dict[height].cloud_fraction_top_m = cloud_heights[height]['top']
 
     # @profile
     def interp_file(self, wrf_filename):
@@ -207,12 +227,12 @@ class HeightInterpFile:
             new_dpt = nc_outfile.createVariable('dew_point_temperature', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile. _set_metadata_dpt(new_dpt)
         if self.windb2_config.contains_interp_var('CLD'):
-            new_cloud_low = nc_outfile.createVariable('cloud_fraction_low', 'f', dimensions=('Time', 'y', 'x'))
-            new_cloud_mid = nc_outfile.createVariable('cloud_fraction_medium', 'f', dimensions=('Time', 'y', 'x'))
-            new_cloud_high = nc_outfile.createVariable('cloud_fraction_high', 'f', dimensions=('Time', 'y', 'x'))
-            new_cloud_fog = nc_outfile.createVariable('cloud_fraction_fog', 'f', dimensions=('Time', 'y', 'x'))
+            new_cloud_fraction = {}
+            for height in self.CLOUD_HEIGHTS.keys():
+                new_cloud_fraction[height] = nc_outfile.createVariable('cloud_fraction_{}'.format(height), 'f', dimensions=('Time', 'y', 'x'))
+            self._set_metadata_cld(new_cloud_fraction, self.CLOUD_HEIGHTS)
 
-        # Calculate the eta half-heights
+                # Calculate the eta half-heights
         height_eta_half_above_ground = self.calc_eta_heights(nc_infile)
         new_eta_height_coord_var[:, :, :, :] = height_eta_half_above_ground[:, :, :, :]
 
@@ -297,21 +317,15 @@ class HeightInterpFile:
                     if self.windb2_config.contains_interp_var('CLD'):
 
                         # Interpolate cloud fraction every 100 m to make the averaging easy
-                        # Using mid-latitude low, medium, and high cloud heights from Galvin, An Intro. to the Met. and Climate of the Tropics, 2016: http://bit.ly/2tTPJxE
-                        # High: 5k-13k m, Middle: 2k-7k m, Low: 0-2k m
-                        # We are arbitrarily defining Fog as 0-30 m
-                        cloud_high_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 500, height_eta_half_above_ground[t, :, y, x] <= 13000)
-                        cloud_mid_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 2000, height_eta_half_above_ground[t, :, y, x] <= 7000)
-                        cloud_low_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 0, height_eta_half_above_ground[t, :, y, x] <= 200)
-                        cloud_fog_indices = numpy.logical_and(height_eta_half_above_ground[t, :, y, x] >= 0, height_eta_half_above_ground[t, :, y, x] <= 30)
-
-                        cloudfra_interp = numpy.interp(numpy.arange(0, 1.3e4, 100),
+                        cloud_indices = {}
+                        cloudfra_interp_heights = numpy.arange(0, self.CLOUD_HEIGHTS['high']['top'], 100)
+                        cloudfra_interp = numpy.interp(cloudfra_interp_heights,
                                                      numpy.concatenate(([0], height_eta_half_above_ground[t, :, y, x])),
                                                      numpy.concatenate(([0], nc_infile['CLDFRA'][t, :, y, x])))
-                        new_cloud_high[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_high_indices])
-                        new_cloud_mid[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_mid_indices])
-                        new_cloud_low[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_low_indices])
-                        new_cloud_fog[t, y, x] = numpy.average(nc_infile['CLDFRA'][t, :, y, x][cloud_fog_indices])
+                        for height in self.CLOUD_HEIGHTS.keys():
+                            cloud_indices[height] = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
+                                                                      cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
+                            new_cloud_fraction[height][t, y, x] = numpy.average(cloudfra_interp[cloud_indices[height]])
 
                     # Interpolate density if inverse density was written out in WRF or if the theta and P were
                     # calculated above
