@@ -30,7 +30,7 @@ def copyvar(wrf_vars, nc_infile, nc_outfile):
 
         # Get the variable to copy
         in_var = nc_infile[wrf_var]
-        out_var = nc_outfile.createVariable(wrf_var.lower(), in_var.datatype,
+        out_var = nc_outfile['WRF'].createVariable(wrf_var, in_var.datatype,
                                             ('Time', 'y', 'x'))
 
         # Add in all of the attributes
