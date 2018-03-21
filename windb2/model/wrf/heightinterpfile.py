@@ -380,10 +380,10 @@ class HeightInterpFile:
                                                                           nc_infile['CLDFRA'][t, :, j, i])))
 
         # Sum the total cloud cover at each height bin
+        cloud_indices = {}
         for height in self.CLOUD_HEIGHTS.keys():
+            cloud_indices = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
+                                              cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
             for j in range(yx_shape[0]):
                 for i in range(yx_shape[1]):
-                    cloud_indices = {}
-                    cloud_indices[height] = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
-                                                              cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
-                    new_cloud_fraction[height][t, j, i] = numpy.average(cloudfra_interp[t][cloud_indices[height]])
+                    new_cloud_fraction[height][t, j, i] = numpy.average((cloudfra_interp[t, :, j, i])[cloud_indices[:, j, i]])
