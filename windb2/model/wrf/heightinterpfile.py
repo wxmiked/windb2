@@ -5,6 +5,7 @@ __author__ = 'Mike Dvorak'
 """Vertically interpolates a WRF netCDF output file to eta-half levels."""
 
 import numpy
+import numpy.ma
 from netCDF4 import Dataset
 from windb2.model.wrf import config
 import windb2.model.wrf.constants as constants
@@ -367,7 +368,7 @@ class HeightInterpFile:
 
         # Interpolate cloud fraction every 100 m to make the averaging easy
         yx_shape = height_eta_half_above_ground[t, :, :, :].shape[-2:]
-        sample_heights = numpy.arange(0, self.CLOUD_HEIGHTS['high']['top'], 100)
+        sample_heights = numpy.arange(2, self.CLOUD_HEIGHTS['high']['top'], 25)
         cloudfra_interp_heights = numpy.repeat(sample_heights, numpy.product(yx_shape))\
             .reshape(sample_heights.shape + height_eta_half_above_ground[t, :, :, :].shape[-2:])
         cloudfra_interp = numpy.zeros((1,) + (sample_heights.shape + yx_shape))
@@ -382,8 +383,7 @@ class HeightInterpFile:
         # Sum the total cloud cover at each height bin
         cloud_indices = {}
         for height in self.CLOUD_HEIGHTS.keys():
+            cloudfra_interp_masked = numpy.ma.array(cloudfra_interp[t], mask=cloud_indices)
             cloud_indices = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
                                               cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
-            for j in range(yx_shape[0]):
-                for i in range(yx_shape[1]):
-                    new_cloud_fraction[height][t, j, i] = numpy.average((cloudfra_interp[t, :, j, i])[cloud_indices[:, j, i]])
+            new_cloud_fraction[height][t, :, :] = numpy.ma.mean(cloudfra_interp_masked, axis=0)
