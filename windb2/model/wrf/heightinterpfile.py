@@ -232,7 +232,7 @@ class HeightInterpFile:
                 new_cloud_fraction[height] = nc_outfile.createVariable('cloud_fraction_{}'.format(height), 'f', dimensions=('Time', 'y', 'x'))
             self._set_metadata_cld(new_cloud_fraction, self.CLOUD_HEIGHTS)
 
-                # Calculate the eta half-heights
+        # Calculate the eta half-heights
         height_eta_half_above_ground = self.calc_eta_heights(nc_infile)
         new_eta_height_coord_var[:, :, :, :] = height_eta_half_above_ground[:, :, :, :]
 
@@ -259,6 +259,16 @@ class HeightInterpFile:
             (u_mass.shape[0], len(self.heights_to_interp), u_mass.shape[2], u_mass.shape[3]), numpy.float64)
         v_grid_rotated = numpy.ndarray(u_grid_rotated.shape, numpy.float64)
         for t in range(height_eta_half_above_ground.shape[0]):
+
+            # Calculate the pressure on the eta-levels for this time
+            pressure_3d_at_time_t = numpy.concatenate(([nc_infile['PSFC'][t, :, :]],
+                                                       nc_infile['P'][t, :, :, :] +
+                                                       nc_infile['PB'][t, :, :, :]))
+
+            # Calculate the cloud fractions
+            if self.windb2_config.contains_interp_var('CLD'):
+                self.calc_cloud_fraction(height_eta_half_above_ground, nc_infile, new_cloud_fraction, t)
+
             for y in range(height_eta_half_above_ground[t].shape[1]):
                 for x in range(height_eta_half_above_ground[t].shape[2]):
 
@@ -293,7 +303,7 @@ class HeightInterpFile:
                         new_pres[t, :, y, x] = numpy.interp(self.heights_to_interp,
                                                             numpy.concatenate(([0],
                                                                                height_eta_half_above_ground[t, :, y, x])),
-                                                            self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x))
+                                                            pressure_3d_at_time_t[y, x])
 
                     # Interpolate dew point
                     # Use surface pressure at t he surface at height zero
@@ -306,26 +316,12 @@ class HeightInterpFile:
                         A = 2.53e11 # Pa
                         B = 5.42e3 # K
                         E = 0.622 # (approximated from R'/Rv)
-                        p = self._calc_pres(height_eta_half_above_ground, nc_infile, t, y, x) # pressure in Pa
+                        p = pressure_3d_at_time_t[:, y, x] # pressure in Pa
 
                         new_dpt[t, :, y, x] = numpy.interp(self.heights_to_interp,
                                                              numpy.concatenate(([0],
                                                                                 height_eta_half_above_ground[t, :, y, x])),
                                                              B / numpy.log(A*E/(qvapor*p)))
-
-                    # Calculate the cloud fractions
-                    if self.windb2_config.contains_interp_var('CLD'):
-
-                        # Interpolate cloud fraction every 100 m to make the averaging easy
-                        cloud_indices = {}
-                        cloudfra_interp_heights = numpy.arange(0, self.CLOUD_HEIGHTS['high']['top'], 100)
-                        cloudfra_interp = numpy.interp(cloudfra_interp_heights,
-                                                     numpy.concatenate(([0], height_eta_half_above_ground[t, :, y, x])),
-                                                     numpy.concatenate(([0], nc_infile['CLDFRA'][t, :, y, x])))
-                        for height in self.CLOUD_HEIGHTS.keys():
-                            cloud_indices[height] = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
-                                                                      cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
-                            new_cloud_fraction[height][t, y, x] = numpy.average(cloudfra_interp[cloud_indices[height]])
 
                     # Interpolate density if inverse density was written out in WRF or if the theta and P were
                     # calculated above
@@ -365,3 +361,29 @@ class HeightInterpFile:
         v_earth_rotated = v_grid_rotated * numpy.asarray(nc_infile['COSALPHA'])[:, numpy.newaxis, :, :] + \
                           u_grid_rotated * numpy.asarray(nc_infile['SINALPHA'])[:, numpy.newaxis, :, :]
         return u_earth_rotated, v_earth_rotated
+
+
+    def calc_cloud_fraction(self, height_eta_half_above_ground, nc_infile, new_cloud_fraction, t):
+
+        # Interpolate cloud fraction every 100 m to make the averaging easy
+        yx_shape = height_eta_half_above_ground[t, :, :, :].shape[-2:]
+        sample_heights = numpy.arange(0, self.CLOUD_HEIGHTS['high']['top'], 100)
+        cloudfra_interp_heights = numpy.repeat(sample_heights, numpy.product(yx_shape))\
+            .reshape(sample_heights.shape + height_eta_half_above_ground[t, :, :, :].shape[-2:])
+        cloudfra_interp = numpy.zeros((1,) + (sample_heights.shape + yx_shape))
+        for j in range(yx_shape[0]):
+            for i in range(yx_shape[1]):
+                cloudfra_interp[t, :, j, i] = numpy.interp(sample_heights,
+                                                       numpy.concatenate((numpy.zeros((1,)),
+                                                                          height_eta_half_above_ground[t, :, j, i])),
+                                                       numpy.concatenate((numpy.zeros((1,)),
+                                                                          nc_infile['CLDFRA'][t, :, j, i])))
+
+        # Sum the total cloud cover at each height bin
+        for height in self.CLOUD_HEIGHTS.keys():
+            for j in range(yx_shape[0]):
+                for i in range(yx_shape[1]):
+                    cloud_indices = {}
+                    cloud_indices[height] = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
+                                                              cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
+                    new_cloud_fraction[height][t, j, i] = numpy.average(cloudfra_interp[t][cloud_indices[height]])
