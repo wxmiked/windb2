@@ -368,7 +368,7 @@ class HeightInterpFile:
 
         # Interpolate cloud fraction every 100 m to make the averaging easy
         yx_shape = height_eta_half_above_ground[t, :, :, :].shape[-2:]
-        sample_heights = numpy.arange(2, self.CLOUD_HEIGHTS['high']['top'], 25)
+        sample_heights = numpy.arange(25, self.CLOUD_HEIGHTS['high']['top'], 25)
         cloudfra_interp_heights = numpy.repeat(sample_heights, numpy.product(yx_shape))\
             .reshape(sample_heights.shape + height_eta_half_above_ground[t, :, :, :].shape[-2:])
         cloudfra_interp = numpy.zeros((1,) + (sample_heights.shape + yx_shape))
@@ -381,9 +381,13 @@ class HeightInterpFile:
                                                                           nc_infile['CLDFRA'][t, :, j, i])))
 
         # Sum the total cloud cover at each height bin
+        # Just set the fog layer to the lowest vertical layer cloud fraction
         cloud_indices = {}
         for height in self.CLOUD_HEIGHTS.keys():
-            cloudfra_interp_masked = numpy.ma.array(cloudfra_interp[t], mask=cloud_indices)
-            cloud_indices = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
-                                              cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
-            new_cloud_fraction[height][t, :, :] = numpy.ma.mean(cloudfra_interp_masked, axis=0)
+            if(height != 'fog'):
+                cloudfra_interp_masked = numpy.ma.array(cloudfra_interp[t], mask=cloud_indices)
+                cloud_indices = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
+                                                  cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
+                new_cloud_fraction[height][t] = numpy.ma.mean(cloudfra_interp_masked, axis=0)
+            else:
+                new_cloud_fraction[height][t] = nc_infile['CLDFRA'][t, 0]
