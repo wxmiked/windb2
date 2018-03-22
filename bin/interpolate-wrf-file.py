@@ -16,6 +16,7 @@
 import configparser
 import fnmatch
 import os
+import os.path
 import sys
 import re
 dir = os.path.dirname(__file__)
@@ -32,6 +33,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("ncfile", type=str, help="WRF netCDF filename to interpolate")
 parser.add_argument("-c", "--copy", help="Copy WRF variables to the interp file",
                     action="store_true")
+parser.add_argument("-o", "--overwrite", help="Overwrite an existing interp file",
+                    action="store_true")
 args = parser.parse_args()
 wrf_config = config.Windb2WrfConfigParser()
 wrf_config.read('windb2-wrf.conf')
@@ -44,8 +47,18 @@ except KeyError:
     logger.setLevel(logging.INFO)
 logging.basicConfig()
 
+# Extension
+interp_extension = '-height-interp.nc'
+
 # Get rid of escaped colon characters that are often added in Unix shells
 ncfile_cleansed = re.sub(r'[\\]', '', args.ncfile)
+
+# Check to see if the file already exists and abort if 'overwrite' is not enabled
+if not args.overwrite and os.path.exists(ncfile_cleansed + interp_extension):
+    logger.error('Interp file already exists and the overwrite option is not enabled: {}'.format(ncfile_cleansed + interp_extension))
+    sys.exit(-3)
+elif args.overwrite and os.path.exists(ncfile_cleansed + interp_extension):
+    logger.info('Overwriting existing interp file: {}'.format(ncfile_cleansed + interp_extension))
 
 # Interpolate this file
 try:
@@ -59,7 +72,7 @@ except configparser.NoSectionError:
 # Copy of WRF vars
 if args.copy:
     try:
-        copyvar(wrf_config.get_str_list('WRF', 'vars'), ncfile_cleansed, ncfile_cleansed + '-height-interp.nc')
+        copyvar(wrf_config.get_str_list('WRF', 'vars'), ncfile_cleansed, ncfile_cleansed + interp_extension)
     except configparser.NoSectionError:
         msg = 'Missing/invalid WRF section windb2-wrf.conf file.'
         print(msg)
