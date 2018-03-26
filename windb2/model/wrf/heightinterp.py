@@ -109,7 +109,7 @@ def log_law_interp(speed, z, z_interp, z_max=None):
 
     # Institute the no-slip condition at the ground (wall)
     if numpy.any([speed_interp < 0]):
-        logging.warning('log_law_interp had ' + str(numpy.size(numpy.where(speed_interp < 0))) +
+        logger.info('log_law_interp had ' + str(numpy.size(numpy.where(speed_interp < 0))) +
                       ' negative speed values which were reset to zero')
         speed_interp[speed_interp < 0] = 0
 
