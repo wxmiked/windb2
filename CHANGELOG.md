@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2018-04-12
+* fixed the slow insert problem by reading netCDF vars into numpy arrary
+
 ## [3.1.1] - 2018-03-21
 * bug fix for cloud fraction
 * fog is now simply the cloud fraction in the lowest layer above ground level (0 or 1)
