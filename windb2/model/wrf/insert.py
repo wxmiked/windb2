@@ -63,22 +63,22 @@ class InsertWRF(Insert):
         if file_type== 'windb2':
             nlong = len(ncfile.dimensions['x'])
             nlat = len(ncfile.dimensions['y'])
-            x_coord_array = ncfile.groups['WRF']['XLONG']
-            y_coord_array = ncfile.groups['WRF']['XLAT']
-            height_array = ncfile.variables['height']
+            x_coord_array = ncfile.groups['WRF']['XLONG'][:]
+            y_coord_array = ncfile.groups['WRF']['XLAT'][:]
+            height_array = ncfile.variables['height'][:]
             init_t = datetime.strptime(ncfile.groups['WRF'].SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         elif file_type== 'wrf':
             nlong = len(ncfile.dimensions['west_east'])
             nlat = len(ncfile.dimensions['south_north'])
-            x_coord_array = ncfile['XLONG']
-            y_coord_array = ncfile['XLAT']
+            x_coord_array = ncfile['XLONG'][:]
+            y_coord_array = ncfile['XLAT'][:]
             height_array = numpy.array([0.])
             init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
         if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
-            u = ncfile.variables['eastward_wind']
-            v = ncfile.variables['northward_wind']
+            u = ncfile.variables['eastward_wind'][:]
+            v = ncfile.variables['northward_wind'][:]
         elif file_type == 'wrf':
-            ncVariable = ncfile.variables[var_name]
+            ncVariable = ncfile.variables[var_name][:]
 
         # Create a new and/or domain if necessary
         if domain_key is None:
