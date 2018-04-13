@@ -60,9 +60,10 @@ if not args.overwrite and os.path.exists(ncfile_cleansed + interp_extension):
 elif args.overwrite and os.path.exists(ncfile_cleansed + interp_extension):
     logger.info('Overwriting existing interp file: {}'.format(ncfile_cleansed + interp_extension))
 
-# Interpolate this file
+# Interpolate this file and leave the file open if we're copying WRF vars
+close_file = True if args.copy else False
 try:
-    heightinterpfile.HeightInterpFile(wrf_config).interp_file(ncfile_cleansed)
+    heightinterpfile.HeightInterpFile(wrf_config).interp_file(ncfile_cleansed, close_file=close_file)
 except configparser.NoSectionError:
     msg = 'Missing/invalid INTERP section in windb2-wrf.conf file.'
     print(msg)

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.1.3] - 2018-04-13
+* height-interp.nc files are now only opened and closed once when copying WRF variables
+
 ## [3.1.2] - 2018-04-12
 * fixed the slow insert problem by reading netCDF vars into numpy arrary
 

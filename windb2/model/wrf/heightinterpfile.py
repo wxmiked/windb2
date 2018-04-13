@@ -176,7 +176,7 @@ class HeightInterpFile:
             ncvar_cld_dict[height].cloud_fraction_top_m = cloud_heights[height]['top']
 
     # @profile
-    def interp_file(self, wrf_filename):
+    def interp_file(self, wrf_filename, close_file=True):
         # Open the netCDF file
         nc_infile = Dataset(wrf_filename, mode='r')
         nc_outfile = Dataset(wrf_filename + self.outfile_extension, mode='w', format='NETCDF4')
@@ -344,8 +344,9 @@ class HeightInterpFile:
             new_u[:, :, :, :] = u_earth_rotated
             new_v[:, :, :, :] = v_earth_rotated
 
-        # Close the file
-        nc_outfile.close()
+        # Close the file if asked
+        if close_file:
+            nc_outfile.close()
 
     def _calc_pres(self, height_eta_half_above_ground, nc_infile, t, y, x):
         """Interpolates the pressure at different heights above ground level"""
