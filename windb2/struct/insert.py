@@ -97,7 +97,7 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
 
         # Get the geomkey for the location
         sql = "SELECT key FROM horizgeom \
-               WHERE st_distance_sphere(geom, st_geomfromtext('POINT(" + str(longitude) + ' ' + str(latitude) + ")',4326)) = 0 AND \
+               WHERE st_distance_sphere(st_transform(geom, 4326), st_geomfromtext('POINT(" + str(longitude) + ' ' + str(latitude) + ")',4326)) = 0 AND \
                      domainkey = " + str(domainKey) + " LIMIT 1"
         windb2.curs.execute(sql)
         geomKey = windb2.curs.fetchone()[0]
@@ -175,7 +175,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
 
         # Get the geomkey for the location
         sql = "SELECT key FROM horizgeom \
-               WHERE st_distance_sphere(geom, st_geomfromtext('POINT({} {})',4326))=0 AND \
+               WHERE st_distance_sphere(st_transform(geom, 4326), st_geomfromtext('POINT({} {})',4326))=0 AND \
                      domainkey={} LIMIT 1".format(longitude, latitude, domainKey)
         windb2.curs.execute(sql)
         geomKey = windb2.curs.fetchone()
@@ -185,8 +185,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
         geomKey = 0
 
     # Create a new geovariable table if it doesn't exist
-    sql = "SELECT exists(SELECT * FROM information_schema.tables WHERE table_name='{}_{}')"\
-        .format(variableList[0].name, domainKey)
+    sql = "SELECT to_regclass('public.{}_{}');".format(variableList[0].name, domainKey)
     windb2.curs.execute(sql)
     if not windb2.curs.fetchone()[0]:
         sql = "CREATE TABLE {}_{} () INHERITS(geovariable)".format(variableList[0].name, domainKey)

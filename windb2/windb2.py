@@ -75,23 +75,18 @@ class WinDB2:
         
         # Make sure a 'dataName' table does not already exist, get the key if it does
         sql = "SELECT key FROM domain WHERE name='" + dataName + "'"
-        try:
-            self.curs.execute(sql)
-        except psycopg2.InternalError as detail:
-            print("Query to determine if domain exists failed: ", detail)
+        self.curs.execute(sql)
 
         # Return the domain, otherwise None if no domain existed
-        domain_key = self.curs.fetchone()
-        if domain_key is None:
-            return None
+        if self.curs.rowcount:
+            return self.curs.fetchone()[0]
         else:
-            return domain_key[0]
-    
+            return None
     
     def dropWindspeedIndex(self, curs, domainKey):
         
         # See if the index exists be querying the 'pg_class' table
-        sql = "SELECT relname FROM pg_class WHERE relname='wind_3_domainkey_geomkey_t_height_key'"
+        sql = "SELECT relname FROM pg_class WHERE relname='wind_{}_domainkey_geomkey_t_height_key'".format(domainKey)
         curs.execute(sql)
         if curs.fetchone():
             # Drop the indicies for speed, only if we did not just create this domain
