@@ -186,7 +186,7 @@ def calculateBuoyErrorForPeriod(conn, wrfDomain, wrfKey, wrfHeight, buoyDomain, 
     print("Running this query:", errorQuery)
     curs.execute(errorQuery)
     
-    # Debug
+    # DebugfindWRFPointNearLongLat
     #print "Ran this query: ", curs.query
     print("Got this status msg: ", curs.statusmessage)
 
@@ -328,14 +328,13 @@ def calculateBuoyErrorForDayOfRun(conn, wrfDomain, wrfKey, wrfHeight, buoyDomain
 
 def findWRFPointNearLongLat(wrfDomainNum, longitude, latitude, curs):
   """
-  Finds wRF domain points near WRF geometries, returning a geomkey and distance [m] from that point.
+  Finds WRF domain points near WRF geometries, returning a geomkey and distance [m] from that point.
+
+  Return distance from nearest point and the units
   """
 
-  # Create a empty list to return with the wrfkey, buoydomain, buoykey, distmeters
-  closestWRFPoints = []
-
   # Find the closest wrfgeom to the buoygeom, putting a limit of twice the resolution
-  sql = "SELECT m.key AS wrfkey, st_distance_sphere(st_transform(m.geom,4326), st_geomfromtext('POINT(" + str(longitude) + " " + str(latitude) + ")',4326)) AS dist \
+  sql = "SELECT m.key AS wrfkey, st_distancesphere(st_transform(m.geom,4326), st_geomfromtext('POINT(" + str(longitude) + " " + str(latitude) + ")',4326)) AS dist \
                     FROM (SELECT * FROM horizgeom WHERE domainkey=" + str(wrfDomainNum) + ") m \
                         ORDER BY dist LIMIT 1"
   curs.execute(sql)
@@ -343,10 +342,10 @@ def findWRFPointNearLongLat(wrfDomainNum, longitude, latitude, curs):
   
   # Make sure we got a result
   if temp == None:
-      print >> sys.stderr, "ERROR: No WRF points returned."
+      print("ERROR: No WRF points returned.", file=sys.stderr)
       sys.exit(-1)
   elif temp[1] > 10000:
-      print >> sys.stderr, "WARNING WARNING: distance to WRF point is exceptionally large.  Closest WRF point is " + str(temp[1]) + " m away."
+      print("WARNING WARNING: distance to WRF point is exceptionally large.  Closest WRF point is {} m away.".format(temp[1]), file=sys.stderr)
 
-  return [temp[0],temp[1]]
+  return temp[0], temp[1]
   
