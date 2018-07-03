@@ -52,7 +52,7 @@ class WinDB2:
         """
         
         # See if the index exists be querying the 'pg_class' table
-        sql = "SELECT relname FROM pg_class WHERE relname='wind_3_domainkey_geomkey_t_height_key'"
+        sql = "SELECT relname FROM pg_class WHERE relname='wind_{}_domainkey_geomkey_t_height_key'".format(domainKey)
         curs.execute(sql)
         if not curs.fetchone():
             # Add back in the index
