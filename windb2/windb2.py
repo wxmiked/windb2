@@ -99,9 +99,10 @@ class WinDB2:
     def table_exists(self, tablename):
         """Checks to see if a tablename already exists in the WinDB2"""
 
-        self.curs.execute('SELECT * FROM information_schema.tables WHERE table_name=%s', (tablename,))
+        self.curs.execute('SELECT * FROM information_schema.tables WHERE table_name=%s', (tablename.lower(),))
         try:
-            return self.curs.fetchone()[0]
+            self.curs.fetchone()[0] # will cause an exception if this doesn't exist
+            return True
         except TypeError:
             return False
             

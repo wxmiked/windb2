@@ -77,10 +77,8 @@ def findWRFPointInProximityToBuoy(buoyDomainKey, wrfDomainNum, curs):
 
   # Make sure we got a result
   if temp == None:
-      sys.stderr.write("ERROR: No buoys returned.")
-      sys.exit(-1)
-  elif temp[1] > 10000:
-      sys.stderr.write("WARNING WARNING: distance to WRF point is exceptionally large.  Closest WRF point is " + str(temp[1]) + " m away.")
+      sys.stderr.write("ERROR: No stations returned.")
+      return False
 
   return temp[0],temp[1]
 
@@ -343,9 +341,6 @@ def findWRFPointNearLongLat(wrfDomainNum, longitude, latitude, curs):
   # Make sure we got a result
   if temp == None:
       print("ERROR: No WRF points returned.", file=sys.stderr)
-      sys.exit(-1)
-  elif temp[1] > 10000:
-      print("WARNING WARNING: distance to WRF point is exceptionally large.  Closest WRF point is {} m away.".format(temp[1]), file=sys.stderr)
-
+      return False
   return temp[0], temp[1]
   

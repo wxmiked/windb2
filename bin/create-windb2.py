@@ -136,7 +136,7 @@ for sql in ['Bias.sql', 'CALC_DIR_DEG.sql', 'DATE_ROUND.sql', 'MEDIAN.sql', 'MSE
 
 # Enable validation
 os.chdir(script_dir + '/../schema/validation')
-for sql in ['WindError.sql', 'WindErrorShortView.sql']:
+for sql in ['WindError.sql', 'WindErrorShortView.sql', 'ValidGeom.sql', 'ValidError.sql']:
     windb.curs.execute(open(sql, 'r').read())
 
 # Commit

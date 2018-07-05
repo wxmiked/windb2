@@ -8,3 +8,4 @@ CREATE TABLE Domain (
   mask VARCHAR(200)
 
 );
+ALTER TABLE domain ADD UNIQUE (key);
