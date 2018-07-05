@@ -143,6 +143,10 @@ class InsertWRF(Insert):
             # Iterate through the x,y, and timearr and insert the WRF variable
             for h in height_array:
 
+                # Only insert heights that are in the config file
+                if h not in self.config.get_float_list('WINDB2', 'heights'):
+                    continue
+
                 # We actually need the index of the height, not the actual height itself
                 if file_type == 'windb2':
                     try:
