@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.1.7] - 2018-07-06
+* Refactored `ValidError` and `ValidStation` (renamed from `ValidGeom`) to store forecast and obs values
+* Fixed bug that inserted more heights than specified in the `windb2-wrf.conf`
+
 ## [3.1.6] - 2018-07-05
 * Added in `ValidError` and `ValidGeom` tables to allow the insertion of MADIS data
 * Minor bug fixes

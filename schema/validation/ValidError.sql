@@ -4,13 +4,10 @@ CREATE TABLE ValidError (
   fcst_time TIMESTAMP WITH TIME ZONE,
   fcst_age_hr FLOAT,
   fcst_height FLOAT,
-  obs_station VARCHAR(40),
-  obs_geomkey INT REFERENCES ValidGeom(key),
-  obs_var_name VARCHAR(10),
-  obs_height FLOAT,
-  obs_source VARCHAR(40),
+  fcst_val FLOAT,
+  obs_geomkey INT REFERENCES ValidStation(key),
   obs_time TIMESTAMP WITH TIME ZONE,
-  diff FLOAT,
-  diff_squared FLOAT,
+  obs_height FLOAT,
+  obs_val FLOAT,
   created TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
