@@ -30,7 +30,7 @@ class HeightInterpFile:
     CLOUD_HEIGHTS['high'] = {'top': 13000, 'bottom': 5000}
     CLOUD_HEIGHTS['mid'] = {'top': 7000, 'bottom': 2000}
     CLOUD_HEIGHTS['low'] = {'top': 2000, 'bottom': 0}
-    CLOUD_HEIGHTS['fog'] = {'top': 30, 'bottom': 0}
+    CLOUD_HEIGHTS['fog'] = {}
 
     eta_height_w = None
     eta_height_mass = None
@@ -168,12 +168,17 @@ class HeightInterpFile:
     @staticmethod
     def _set_metadata_cld(ncvar_cld_dict, cloud_heights):
         for height in cloud_heights.keys():
-            ncvar_cld_dict[height].description = 'Cloud fraction {}'.format(height),
-            ncvar_cld_dict[height].longdescription = 'Cloud fraction is the fraction of the layer that is covered in clouds from {} to {} m.'\
-                .format(cloud_heights[height]['bottom'], cloud_heights[height]['top'])
-            ncvar_cld_dict[height].units = '1'
-            ncvar_cld_dict[height].cloud_fraction_bottom_m = cloud_heights[height]['bottom']
-            ncvar_cld_dict[height].cloud_fraction_top_m = cloud_heights[height]['top']
+            if height != 'fog':
+                ncvar_cld_dict[height].description = 'Cloud fraction {}'.format(height)
+                ncvar_cld_dict[height].longdescription = 'Cloud fraction is the maximum cloud covered layer from {} to {} m.'\
+                    .format(cloud_heights[height]['bottom'], cloud_heights[height]['top'])
+                ncvar_cld_dict[height].units = '1'
+                ncvar_cld_dict[height].cloud_fraction_bottom_m = cloud_heights[height]['bottom']
+                ncvar_cld_dict[height].cloud_fraction_top_m = cloud_heights[height]['top']
+            elif height == 'fog':
+                ncvar_cld_dict[height].description = 'Cloud fraction fog'
+                ncvar_cld_dict[height].longdescription = 'Fog is the cloud fraction in the lowest vertical level of the model.'
+                ncvar_cld_dict[height].units = '1'
 
     # @profile
     def interp_file(self, wrf_filename, close_file=True):
@@ -232,6 +237,7 @@ class HeightInterpFile:
             for height in self.CLOUD_HEIGHTS.keys():
                 new_cloud_fraction[height] = nc_outfile.createVariable('cloud_fraction_{}'.format(height), 'f', dimensions=('Time', 'y', 'x'))
             self._set_metadata_cld(new_cloud_fraction, self.CLOUD_HEIGHTS)
+
 
         # Calculate the eta half-heights
         height_eta_half_above_ground = self.calc_eta_heights(nc_infile)
@@ -367,28 +373,13 @@ class HeightInterpFile:
 
     def calc_cloud_fraction(self, height_eta_half_above_ground, nc_infile, new_cloud_fraction, t):
 
-        # Interpolate cloud fraction every 100 m to make the averaging easy
-        yx_shape = height_eta_half_above_ground[t, :, :, :].shape[-2:]
-        sample_heights = numpy.arange(25, self.CLOUD_HEIGHTS['high']['top'], 25)
-        cloudfra_interp_heights = numpy.repeat(sample_heights, numpy.product(yx_shape))\
-            .reshape(sample_heights.shape + height_eta_half_above_ground[t, :, :, :].shape[-2:])
-        cloudfra_interp = numpy.zeros((1,) + (sample_heights.shape + yx_shape))
-        for j in range(yx_shape[0]):
-            for i in range(yx_shape[1]):
-                cloudfra_interp[t, :, j, i] = numpy.interp(sample_heights,
-                                                       numpy.concatenate((numpy.zeros((1,)),
-                                                                          height_eta_half_above_ground[t, :, j, i])),
-                                                       numpy.concatenate((numpy.zeros((1,)),
-                                                                          nc_infile['CLDFRA'][t, :, j, i])))
-
-        # Sum the total cloud cover at each height bin
-        # Just set the fog layer to the lowest vertical layer cloud fraction
+        # Get the maximum cloud fraction value at each height
         cloud_indices = {}
         for height in self.CLOUD_HEIGHTS.keys():
             if(height != 'fog'):
-                cloudfra_interp_masked = numpy.ma.array(cloudfra_interp[t], mask=cloud_indices)
-                cloud_indices = numpy.logical_and(cloudfra_interp_heights >= self.CLOUD_HEIGHTS[height]['bottom'],
-                                                  cloudfra_interp_heights <= self.CLOUD_HEIGHTS[height]['top'])
-                new_cloud_fraction[height][t] = numpy.ma.mean(cloudfra_interp_masked, axis=0)
+                cloud_indices = numpy.logical_and(height_eta_half_above_ground[t, :, :, :] >= self.CLOUD_HEIGHTS[height]['bottom'],
+                                                  height_eta_half_above_ground[t, :, :, :] <= self.CLOUD_HEIGHTS[height]['top'])
+                cloudfra_interp_masked = numpy.ma.array(nc_infile['CLDFRA'][t], mask=~cloud_indices)
+                new_cloud_fraction[height][t] = numpy.ma.max(cloudfra_interp_masked, axis=0)
             else:
                 new_cloud_fraction[height][t] = nc_infile['CLDFRA'][t, 0]
