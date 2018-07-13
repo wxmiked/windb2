@@ -100,12 +100,10 @@ class WinDB2:
         """Checks to see if a tablename already exists in the WinDB2"""
 
         self.curs.execute('SELECT * FROM information_schema.tables WHERE table_name=%s', (tablename.lower(),))
-        try:
-            self.curs.fetchone()[0] # will cause an exception if this doesn't exist
+        if self.curs.rowcount > 0:
             return True
-        except TypeError:
+        else:
             return False
-            
 
     def filterTimes(self, timesArray, timeFormat, sqlWhere='true'):
         """Uses the WinDB2 to filter out unwanted tide times. If sqlWhere is left blank, this function
