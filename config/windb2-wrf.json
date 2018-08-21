@@ -1,0 +1,33 @@
+{
+  "3dvars" : {
+    "WIND": {
+      "interp": {
+        "heights": [
+          10,
+          50
+        ]
+      },
+      "insert": {
+        "heights": [
+          10
+        ]
+      }
+    },
+    "DPT": {
+      "interp": {
+        "heights": [
+          2
+        ]
+      }
+    }
+  },
+  "2dvars": {
+    "T2": {
+      "copy": true,
+      "insert": {
+        "height": 2
+      }
+    }
+  },
+  "loglevel": "WARNING"
+}
