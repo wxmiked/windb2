@@ -5,7 +5,7 @@ CREATE TABLE ValidError (
   fcst_age_hr FLOAT,
   fcst_height FLOAT,
   fcst_val FLOAT,
-  obs_geomkey INT REFERENCES ValidStation(key),
+  obs_stationkey INT REFERENCES ValidStation(key),
   obs_time TIMESTAMP WITH TIME ZONE,
   obs_height FLOAT,
   obs_val FLOAT,
