@@ -50,7 +50,7 @@ windb2.connect()
 
 # Load a WinDB2 config file
 windb2_config = config.Windb2WrfConfigParser()
-windb2_config.read('windb2-wrf.conf')
+windb2_config.read('windb2-wrf.json')
 
 # Set up logging
 logger = logging.getLogger('windb2')
@@ -89,14 +89,14 @@ elif file_type == 'wrf':
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
 for var in vars:
     try:
-        (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, var, domain_key=args.domain_key, replace_data=args.overwrite,
+        (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, domain_key=args.domain_key, replace_data=args.overwrite,
                                  mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
 
         # Set the domain key so that we don't create the same domain twice
         if not args.domain_key:
             args.domain_key = domain_key_returned
     except configparser.NoSectionError:
-        msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
+        msg = 'Missing windb2-wrf.json file. Please add a valid config file.'
         print(msg)
         logger.error(msg)
         sys.exit(-2)
