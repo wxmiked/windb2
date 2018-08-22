@@ -11,8 +11,7 @@ from windb2.model.wrf import config
 import windb2.model.wrf.constants as constants
 import logging
 
-wrf_config = config.Windb2WrfConfigParser()
-wrf_config.read('windb2-wrf.conf')
+wrf_config = config.Windb2WrfConfigParser('windb2-wrf.json')
 
 logger = logging.getLogger('windb2')
 

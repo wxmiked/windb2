@@ -1,69 +1,57 @@
 {
   "type": "object",
-  "properties": {
-    "3dvars": {
-      "type": "object",
-      "properties:": {
-        "interp": {
-          "type": "object",
-          "properties": {
-            "heights": {
-              "type": "array",
-              "items": {
-                "type": "number"
-              },
-              "required": true
-            }
-          }
-        },
-        "insert": {
-          "type": "object",
-          "properties": {
-            "heights": {
-              "type": "array",
-              "items": {
-                "type": "number"
-              },
-              "required": [
-                "heights"
-              ]
+  "items": {
+    "type": "object",
+    "properties": {
+      "interp": {
+        "type": "object",
+        "properties": {
+          "heights": {
+            "type": "array",
+            "items": {
+              "type": "number"
             }
           }
         }
-      }
-    },
-    "2dvars": {
-      "type": "object",
-      "properties:": {
-        "copy": {
-          "type": "boolean"
-        },
-        "insert": {
-          "type": "object",
-          "properties": {
-            "height": {
-              "type": "number",
-              "required": true
-            }
+      },
+      "vars": {
+        "type": "object",
+        "properties": {
+          "dims": {
+            "type": "number",
+            "enum": [
+              2,
+              3
+            ]
+          },
+          "insert": {
+            "type": "array",
+            "minItems": 1
+          },
+          "copy": {
+            "type": "boolean"
           }
-        }
-      }
-    },
-    "loglevel": {
-      "type": "string",
-      "items": {
-        "enum": [
-          "ERROR",
-          "WARNING",
-          "INFO",
-          "DEBUG"
+        },
+        "required": [
+          "insert"
         ]
+      },
+      "loglevel": {
+        "type": "string",
+        "items": {
+          "enum": [
+            "ERROR",
+            "WARNING",
+            "INFO",
+            "DEBUG"
+          ]
+        }
       }
-    }
-  },
-  "required": [
-    "3dvars",
-    "2dvars",
-    "loglevel"
-  ]
+    },
+    "required": [
+      "interp",
+      "vars",
+      "loglevel"
+    ]
+  }
 }
