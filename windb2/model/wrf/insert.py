@@ -80,15 +80,17 @@ class InsertWRF(Insert):
             init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
 
         # Read in the vars to insert
-        if file_type == 'windb2' and var_name.lower() == 'wind'.lower():
+        if file_type == 'windb2' and var_name.lower() == 'WIND'.lower():
             u = ncfile.variables['eastward_wind'][:]
             v = ncfile.variables['northward_wind'][:]
+        elif file_type == 'windb2' and var_name.lower() == 'DPT'.lower():
+            ncVariable = ncfile.variables['dew_point_temperature'][:]
         # Otherwise try find the WinDB2 interp or WRF var
         else:
             try:
                 ncVariable = ncfile.variables[var_name][:]
-            except Exception as e:
-                ncVariable = ncfile.variables['WRF'][var_name][:]
+            except KeyError as e:
+                ncVariable = ncfile.groups['WRF'][var_name][:]
 
         # Create a new and/or domain if necessary
         if domain_key is None:
@@ -193,15 +195,16 @@ class InsertWRF(Insert):
                                 counter += 1
 
                         elif file_type == 'windb2':
-                            if not (numpy.isnan(u[tCount, z, y, x]) or numpy.isnan(v[tCount, z, y, x])):
+                            # Add this row to be inserted into the database
+                            if self.config['vars'][var_name]['dims'] == 2:
+                                val = ncVariable[tCount, y, x]
+                            elif self.config['vars'][var_name]['dims'] == 3:
+                                val = ncVariable[tCount, z, y, x]
 
-                                # Add this row to be inserted into the database
-                                # Note that we negate U and V so they exist in WinDB2 as the vernacular "coming from" wind direction
-                                print('{}, {}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y],
+                            if not numpy.isnan(val):
+                                print('{}, {}, {}, {}, {}, {}'.format(domain_key, horizGeomKey[x, y],
                                                                       t.strftime('%Y-%m-%d %H:%M:%S %Z'),
-                                                                      ncVariable[tCount, y, x],
-                                                                      int(util.calc_dir_deg(-u[tCount, z, y, x],
-                                                                      -v[tCount, z, y, x])),
+                                                                      val,
                                                                       height,
                                                                       init_t.strftime('%Y-%m-%d %H:%M:%S %Z')), file=tempFile)
                                 counter += 1
