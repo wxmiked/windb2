@@ -1,0 +1,57 @@
+{
+  "type": "object",
+  "items": {
+    "type": "object",
+    "properties": {
+      "interp": {
+        "type": "object",
+        "properties": {
+          "heights": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "vars": {
+        "type": "object",
+        "properties": {
+          "dims": {
+            "type": "number",
+            "enum": [
+              2,
+              3
+            ]
+          },
+          "insert": {
+            "type": "array",
+            "minItems": 1
+          },
+          "copy": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "insert"
+        ]
+      },
+      "loglevel": {
+        "type": "string",
+        "items": {
+          "enum": [
+            "ERROR",
+            "WARNING",
+            "INFO",
+            "DEBUG"
+          ]
+        }
+      }
+    },
+    "required": [
+      "interp",
+      "vars",
+      "loglevel"
+    ]
+  }
+}

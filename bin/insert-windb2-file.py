@@ -49,13 +49,12 @@ windb2 = windb2.WinDB2(args.db_host, args.db_name, dbUser=args.db_user, port=arg
 windb2.connect()
 
 # Load a WinDB2 config file
-windb2_config = config.Windb2WrfConfigParser()
-windb2_config.read('windb2-wrf.conf')
+windb2_config = config.Windb2WrfConfigParser('windb2-wrf.json')
 
 # Set up logging
 logger = logging.getLogger('windb2')
 try:
-    logger.setLevel(windb2_config['LOGGER']['windb2'])
+    logger.setLevel(windb2_config.config['loglevel'])
 except KeyError:
     logger.setLevel(logging.INFO)
 logging.basicConfig()
@@ -80,23 +79,11 @@ else:
     logger.error(msg)
     sys.exit(-1)
 
-# Vars to read
-if file_type == 'windb2':
-    vars = windb2_config.get_str_list('WINDB2', 'vars')
-elif file_type == 'wrf':
-    vars = windb2_config.get_str_list('WRF', 'vars')
-
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
-for var in vars:
-    try:
-        (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, var, domain_key=args.domain_key, replace_data=args.overwrite,
-                                 mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
+for var in windb2_config.config['vars'].keys():
+    (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, domain_key=args.domain_key, replace_data=args.overwrite,
+                             mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
 
-        # Set the domain key so that we don't create the same domain twice
-        if not args.domain_key:
-            args.domain_key = domain_key_returned
-    except configparser.NoSectionError:
-        msg = 'Missing windb2-wrf.conf file. Please add a valid config file.'
-        print(msg)
-        logger.error(msg)
-        sys.exit(-2)
+    # Set the domain key so that we don't create the same domain twice
+    if not args.domain_key:
+        args.domain_key = domain_key_returned
