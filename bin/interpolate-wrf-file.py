@@ -36,13 +36,12 @@ parser.add_argument("-c", "--copy", help="Copy WRF variables to the interp file"
 parser.add_argument("-o", "--overwrite", help="Overwrite an existing interp file",
                     action="store_true")
 args = parser.parse_args()
-wrf_config = config.Windb2WrfConfigParser()
-wrf_config.read('windb2-wrf.conf')
+windb2_config = config.Windb2WrfConfigParser('windb2-wrf.json').config
 
 # Set up logging
 logger = logging.getLogger('windb2')
 try:
-    logger.setLevel(wrf_config['LOGGER']['windb2'])
+    logger.setLevel(windb2_config['loglevel'])
 except KeyError:
     logger.setLevel(logging.INFO)
 logging.basicConfig()
@@ -62,20 +61,22 @@ elif args.overwrite and os.path.exists(ncfile_cleansed + interp_extension):
 
 # Interpolate this file and leave the file open if we're copying WRF vars
 close_file = True if args.copy else False
-try:
-    heightinterpfile.HeightInterpFile(wrf_config).interp_file(ncfile_cleansed, close_file=close_file)
-except configparser.NoSectionError:
-    msg = 'Missing/invalid INTERP section in windb2-wrf.conf file.'
-    print(msg)
-    logger.error(msg)
-    sys.exit(-1)
+heightinterpfile.HeightInterpFile(windb2_config).interp_file(ncfile_cleansed, close_file=close_file)
 
 # Copy of WRF vars
 if args.copy:
-    try:
-        copyvar(wrf_config.get_str_list('WRF', 'vars'), ncfile_cleansed, ncfile_cleansed + interp_extension)
-    except configparser.NoSectionError:
-        msg = 'Missing/invalid WRF section windb2-wrf.conf file.'
-        print(msg)
-        logger.error(msg)
-        sys.exit(-2)
+    # Get the WRF vars to copy
+    wrf_vars = []
+    for key, val in windb2_config['vars'].items():
+        try:
+            val['copy'] # Generates an exception if not there
+            wrf_vars.append(key)
+        except KeyError as e:
+            True
+
+    # Exit if nothing to do
+    if len(wrf_vars) == 0:
+        exit(0)
+
+    # Copy the vars
+    copyvar(wrf_vars, ncfile_cleansed, ncfile_cleansed + interp_extension)

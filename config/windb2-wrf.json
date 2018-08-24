@@ -1,0 +1,30 @@
+{
+  "interp" : {
+    "heights": [
+      2,
+      10
+    ]
+  },
+  "vars": {
+    "WIND": {
+      "dims": 3,
+      "insert": [
+        10
+      ]
+    },
+    "DPT": {
+      "dims": 3,
+      "insert": [
+        2
+      ]
+    },
+    "T2": {
+      "dims": 2,
+      "copy": true,
+      "insert": [
+        2
+      ]
+    }
+  },
+  "loglevel": "WARNING"
+}
