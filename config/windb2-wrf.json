@@ -2,8 +2,7 @@
   "interp" : {
     "heights": [
       2,
-      10,
-      50
+      10
     ]
   },
   "vars": {
@@ -13,15 +12,15 @@
         10
       ]
     },
-    "T2": {
-      "dims": 2,
-      "copy": true,
+    "DPT": {
+      "dims": 3,
       "insert": [
         2
       ]
     },
-    "DPT": {
-      "dims": 3,
+    "T2": {
+      "dims": 2,
+      "copy": true,
       "insert": [
         2
       ]

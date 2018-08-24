@@ -11,8 +11,6 @@ from windb2.model.wrf import config
 import windb2.model.wrf.constants as constants
 import logging
 
-wrf_config = config.Windb2WrfConfigParser('windb2-wrf.json')
-
 logger = logging.getLogger('windb2')
 
 class HeightInterpFile:
@@ -38,8 +36,8 @@ class HeightInterpFile:
 
     def __init__(self, windb2_config):
         self.windb2_config = windb2_config
-        self.heights_to_interp = self.windb2_config.get_float_list('INTERP', 'heights')
-        self.vars_to_interp = self.windb2_config.get_str_list('INTERP', 'vars')
+        self.heights_to_interp = self.windb2_config['interp']['heights']
+        self.vars_to_interp = self.windb2_config['vars']
 
     @staticmethod
     def copy_empty_var(varname, nc_infile, nc_outfile):
@@ -214,24 +212,24 @@ class HeightInterpFile:
         # New variables in the netCDF file
         # Names according to the Climate and Forecast (CF) Convention v29:
         # http://cfconventions.org/Data/cf-standard-names/29/build/cf-standard-name-table.html
-        if self.windb2_config.contains_interp_var('WIND'):
+        if 'WIND' in self.windb2_config['vars']:
             new_u = nc_outfile.createVariable('eastward_wind', 'f', dimensions=('Time', 'height', 'y', 'x'))
             new_v = nc_outfile.createVariable('northward_wind', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_uv(new_u, new_v)
-        if self.windb2_config.contains_interp_var('THETA'):
+        if 'THETA' in  self.windb2_config['vars']:
             new_theta = nc_outfile.createVariable('air_potential_temperature', 'f',
                                                   dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_theta(new_theta)
-        if self.windb2_config.contains_interp_var('PRES'):
+        if 'PRES' in self.windb2_config['vars']:
             new_pres = nc_outfile.createVariable('air_pressure', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_pres(new_pres)
-        if self.windb2_config.contains_interp_var('RHO'):
+        if 'RHO' in self.windb2_config['vars']:
             new_rho = nc_outfile.createVariable('air_density', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile._set_metadata_rho(new_rho)
-        if self.windb2_config.contains_interp_var('DPT'):
+        if 'DPT' in self.windb2_config['vars']:
             new_dpt = nc_outfile.createVariable('dew_point_temperature', 'f', dimensions=('Time', 'height', 'y', 'x'))
             HeightInterpFile. _set_metadata_dpt(new_dpt)
-        if self.windb2_config.contains_interp_var('CLD'):
+        if 'CLD' in self.windb2_config['vars']:
             new_cloud_fraction = {}
             for height in self.CLOUD_HEIGHTS.keys():
                 new_cloud_fraction[height] = nc_outfile.createVariable('cloud_fraction_{}'.format(height), 'f', dimensions=('Time', 'y', 'x'))
@@ -247,7 +245,7 @@ class HeightInterpFile:
         v_var = nc_infile.variables['V'][:, :, :, :]
 
         # Try and get ZNT which will be used for diagnosing winds below the lowest model level
-        if self.windb2_config.contains_interp_var('WIND'):
+        if 'WIND' in self.windb2_config['vars']:
             try:
                 znt_var = nc_infile.variables['ZNT'][:, :, :]
                 lower_pbl_interp = 'log-law'
@@ -272,14 +270,14 @@ class HeightInterpFile:
                                                        nc_infile['PB'][t, :, :, :]))
 
             # Calculate the cloud fractions
-            if self.windb2_config.contains_interp_var('CLD'):
+            if 'CLD' in self.windb2_config['vars']:
                 self.calc_cloud_fraction(height_eta_half_above_ground, nc_infile, new_cloud_fraction, t)
 
             for y in range(height_eta_half_above_ground[t].shape[1]):
                 for x in range(height_eta_half_above_ground[t].shape[2]):
 
                     # Interpolate the wind fields
-                    if self.windb2_config.contains_interp_var('WIND'):
+                    if 'WIND' in self.windb2_config['vars']:
 
                         # Select interpolation for lower PBL
                         if lower_pbl_interp=='log-law':
@@ -294,7 +292,7 @@ class HeightInterpFile:
 
                     # Interpolate potential temperature
                     # Return the 2 m potential temperature if below the lowest height in the model
-                    if self.windb2_config.contains_interp_var('THETA'):
+                    if 'THETA' in self.windb2_config['vars']:
                         new_theta[t, :, y, x] = numpy.interp(self.heights_to_interp,
                                                              numpy.concatenate(([2],
                                                                                 height_eta_half_above_ground[t, :, y,
@@ -305,7 +303,7 @@ class HeightInterpFile:
 
                     # Interpolate pressure
                     # Use surface pressure at the surface at height zero
-                    if self.windb2_config.contains_interp_var('PRES'):
+                    if 'PRES' in self.windb2_config['vars']:
                         new_pres[t, :, y, x] = numpy.interp(self.heights_to_interp,
                                                             numpy.concatenate(([0],
                                                                                height_eta_half_above_ground[t, :, y, x])),
@@ -313,7 +311,7 @@ class HeightInterpFile:
 
                     # Interpolate dew point
                     # Use surface pressure at t he surface at height zero
-                    if self.windb2_config.contains_interp_var('DPT'):
+                    if 'DPT' in self.windb2_config['vars']:
 
                         # Combine 2 m and 3D water
                         qvapor = numpy.concatenate(([nc_infile['Q2'][t, y, x]], nc_infile['QVAPOR'][t, :, y, x]))
@@ -332,8 +330,8 @@ class HeightInterpFile:
                     # Interpolate density if inverse density was written out in WRF or if the theta and P were
                     # calculated above
                     #TODO implement check for WRF inverse-air density variable
-                    if self.windb2_config.contains_interp_var('RHO') and self.windb2_config.contains_interp_var('THETA')\
-                            and self.windb2_config.contains_interp_var('PRES'):
+                    if 'RHO' in self.windb2_config['vars'] and 'THETA' in self.windb2_config['vars']\
+                            and 'PRES' in self.windb2_config['vars']:
 
                         # Use the equation of state to calculate the density
                         # TODO this has to convert to actual temperature rather than potential temperature
@@ -343,9 +341,9 @@ class HeightInterpFile:
         u_earth_rotated, v_earth_rotated = self._rotate_winds(nc_infile, u_grid_rotated, v_grid_rotated)
 
         # Write the netCDF vars
-        if self.windb2_config.contains_interp_var('WIND'):
+        if 'WIND' in self.windb2_config['vars']:
             new_eta_height_coord_var[:, :, :, :] = height_eta_half_above_ground
-            new_height_agl_coord_var[:] = numpy.array(self.windb2_config.get_float_list('INTERP', 'HEIGHTS'))
+            new_height_agl_coord_var[:] = numpy.array(self.windb2_config['interp']['heights'])
             new_u[:, :, :, :] = u_earth_rotated
             new_v[:, :, :, :] = v_earth_rotated
 
