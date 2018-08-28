@@ -81,8 +81,12 @@ else:
 
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
 for var in windb2_config.config['vars'].keys():
-    (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, domain_key=args.domain_key, replace_data=args.overwrite,
-                             mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
+    try:
+        if isinstance(windb2_config.config['vars'][var]['insert'], list): # will fail if insert does not exist
+            (times_inserted, domain_key_returned) = inserter.insert_variable(ncfile, var, domain_key=args.domain_key, replace_data=args.overwrite,
+                                                                             mask=args.mask, zero_seconds=args.zero_seconds, file_type=file_type)
+    except KeyError:
+        continue
 
     # Set the domain key so that we don't create the same domain twice
     if not args.domain_key:
