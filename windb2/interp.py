@@ -28,7 +28,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
              regGridInWrfY -> 2D WRF native latitudinal coordinate of the regular grid latitudinal coordinates
     """
     import numpy as np
-    import mpl_toolkits.basemap.pyproj as pyproj
+    import pyproj
     
     # Get the coordinates of the WRF grid in the native WRF projection
     sql = """SELECT generate_series(x.min::int, x.max::int,(x.max::int - x.min::int)/({} - 1)) as x_coords
