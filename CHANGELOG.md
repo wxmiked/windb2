@@ -5,8 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [3.2.2] - 2018-10-15
-* Fixed bug where overwriting data did actually overwrite new data
-* Fixed bug that prevented surface WRF variables to be inserted
+* Fixed bug where overwriting data does actually write new data
+* Fixed bug that prevented surface WRF variables from be inserted
 
 ## [3.2.1] - 2018-08-24
 * Fixed insert of copied WRF vars, works with 2 or 3 dimension variables
