@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-* Fixed bug where overwriting data did actually overwrite new data
-* Fixed bug that prevented surface WRF variables to be inserted
+## [3.3.0] - 2018-10-15
+* WRF coordinates are now ingested in their native lambert conformal conic coordinate
+* Fixed bug where overwriting data does actually write new data
+* Fixed bug that prevented surface WRF variables from be inserted
 
 ## [3.2.1] - 2018-08-24
 * Fixed insert of copied WRF vars, works with 2 or 3 dimension variables

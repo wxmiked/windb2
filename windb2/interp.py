@@ -29,6 +29,13 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
     """
     import numpy as np
     import pyproj
+
+    import logging
+
+    # Set up logging
+    logging.basicConfig()
+    logger = logging.getLogger('windb2')
+    logger.setLevel('DEBUG')
     
     # Get the coordinates of the WRF grid in the native WRF projection
     sql = """SELECT generate_series(x.min::int, x.max::int,(x.max::int - x.min::int)/({} - 1)) as x_coords
@@ -37,6 +44,7 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
                    WHERE h.domainkey=d.key AND domainkey={}
                    GROUP BY d.resolution) x
              ORDER BY x_coords""".format(nInputLong, domainNum)
+    logger.debug(sql)
     curs.execute(sql)
     results = curs.fetchall()
     wrfX = np.array(results)[:,0]
@@ -46,12 +54,14 @@ def getCoordsOfReguarGridInWrfCoords(curs, domainNum, outputLong, outputLat, nIn
                    WHERE h.domainkey=d.key AND domainkey={}
                    GROUP BY d.resolution) y
              ORDER BY y_coords""".format(nInputLat, domainNum)
+    logger.debug(sql)
     curs.execute(sql)
     results = curs.fetchall()
     wrfY = np.array(results)[:,0]
     
     # Get the SRID of the WRF domain
     sql= """SELECT proj4text FROM spatial_ref_sys WHERE srid=(SELECT st_srid(geom) FROM horizgeom WHERE domainkey=""" + str(domainNum) + """ LIMIT 1)"""
+    logger.debug(sql)
     curs.execute(sql)
     wrfProj4Str = curs.fetchone()[0]
     

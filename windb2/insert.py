@@ -202,7 +202,7 @@ class Insert(object):
                 # Create the grid point
                 # You have to do it with this following syntax (ST_GeomFromText doesn't work with the COPY_FROM function)
                 # See http://postgis.17.x6.nabble.com/Adding-postgis-column-in-COPY-command-td3520584.html
-                geom = 'SRID={};POINT({} {})'.format(str(srid), xCoordArray[0, y, x], yCoordArr[0, y, x])
+                geom = 'SRID=4326;POINT({} {})'.format(xCoordArray[0, y, x], yCoordArr[0, y, x])
                 print('{}, {}, {}, {}'.format(geom, domainKey, x, y), file=tempFile)
 
         # Print the last update message
@@ -219,10 +219,9 @@ class Insert(object):
             print >> sys.stderr, "ERROR ON INSERT: ", e.message
             raise e
 
-        # Copy all of the newly inserted points over as Google Spherical Mercator coordinates
-        # (this should eliminate coordinate transformations necessary for tile rendering and make Geoserver hella fast)
+        # Insert all of the points in the native WRF SRID
         try:
-            count = self.windb2.curs.execute('INSERT INTO horizgeom SELECT key, domainkey, x, y, ST_Transform(geom, 3857) FROM horizgeom_import WHERE domainkey={}'.format(domainKey))
+            count = self.windb2.curs.execute('INSERT INTO horizgeom SELECT key, domainkey, x, y, ST_Transform(geom, {}) FROM horizgeom_import WHERE domainkey={}'.format(self.srid, domainKey))
             self.logger.debug('Inserted {} new points'.format(self.windb2.curs.rowcount))
         except psycopg2.IntegrityError as e:
             print >> sys.stderr, "ERROR ON INSERT: ", e.message
