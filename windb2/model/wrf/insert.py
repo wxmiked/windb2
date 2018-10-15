@@ -80,6 +80,7 @@ class InsertWRF(Insert):
             init_t = datetime.strptime(ncfile.SIMULATION_START_DATE, '%Y-%m-%d_%H:%M:%S').replace(tzinfo=pytz.utc)
 
         # Read in the vars to insert
+        wrf_copied_var = False
         if file_type == 'windb2' and var_name.lower() == 'WIND'.lower():
             u = ncfile.variables['eastward_wind'][:]
             v = ncfile.variables['northward_wind'][:]
@@ -90,6 +91,7 @@ class InsertWRF(Insert):
             try:
                 ncVariable = ncfile.variables[var_name][:]
             except KeyError as e:
+                wrf_copied_var = True
                 ncVariable = ncfile.groups['WRF'][var_name][:]
 
         # Create a new and/or domain if necessary
@@ -153,15 +155,15 @@ class InsertWRF(Insert):
 
                 # We actually need the index of the height, not the actual height itself
                 height = None
-                if file_type == 'windb2':
+                if file_type == 'windb2' and wrf_copied_var is False:
                     try:
                         z = numpy.argwhere(ncfile.variables['height'][:] == h)[0, 0]
                         height = height_array[z]
                     except IndexError:
                         logger.error('Height {} to insert does not exist in WinDB2 file'.format(h))
                         sys.exit(-1)
-                elif re.search(r'([a-z]{1,})([0-9]{1,})', var_name.lower()).group(2) is not None:
-                    height = re.search(r'([a-z]{1,})([0-9]{1,})', var_name.lower()).group(2)
+                elif wrf_copied_var is True:
+                    height = height_array[0]
                 else:
                     height = 0
 
@@ -265,9 +267,11 @@ class InsertWRF(Insert):
                 # Calaculate the insert rate
                 elapsedTime = (datetime.now() - startTime).seconds
                 try:
-                    print('Inserted {}, {} height x,y wind points at {} I/s'.format(counter, height_array[z], counter / elapsedTime))
+                    print('Inserted {}, {}-m height x,y wind points at {} I/s'.format(counter, height_array[z], counter / elapsedTime))
                 except ZeroDivisionError:
-                    print('Inserted {}, {} height x,y wind points'.format(counter, height_array[z]))
+                    print('Inserted {}, {}-m height x,y wind points'.format(counter, height_array[z]))
+                except UnboundLocalError:
+                    print('Inserted {}, {}-m height x,y wind points'.format(counter, height_array[0]))
 
                 # Close the tempfile so it is deleted
                 tempFile.close()
