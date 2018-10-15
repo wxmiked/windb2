@@ -251,6 +251,7 @@ class InsertWRF(Insert):
                             self.windb2.curs.copy_from(open(tempFile.name, 'r'), var_name + '_' + domain_key, sep=',', columns=insertColumns)
 
                             # No need to commit again, go on to the next height
+                            self.windb2.conn.commit()
                             continue
 
                         # Otherwise, just notify that the insert failed because of duplicate data. We do re-raise this error
