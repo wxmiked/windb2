@@ -250,7 +250,7 @@ class InsertWRF(Insert):
                             # Reinsert that timearr
                             self.windb2.curs.copy_from(open(tempFile.name, 'r'), var_name + '_' + domain_key, sep=',', columns=insertColumns)
 
-                            # No need to commit again, go on to the next height
+                            # Commit again or the reinserts won't stick
                             self.windb2.conn.commit()
                             continue
 
