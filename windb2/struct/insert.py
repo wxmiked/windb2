@@ -31,9 +31,6 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     if not domainKey:
         newDomain = True
 
-    # Debug
-    # print 'domainKey=', domainKey
-
     # Create a new table if we need to
     if domainKey == None:
 
@@ -93,7 +90,7 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
         windb2.conn.commit()
 
     # Otherwise, check to see if there already exists a geomkey with the same coordinates
-    elif longitude != 0 and latitude != 0:
+    elif longitude != 0 and latitude != 0 and moving is False:
 
         # Get the geomkey for the location
         sql = "SELECT key FROM horizgeom \
@@ -133,15 +130,17 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     # Commit these changes
     windb2.conn.commit()
 
-def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, longitude=0, latitude=0, resolution=0, reinsert=False):
+def insertGeoVariable(windb2, dataName, dataCreator, variableList, table_name_override=None, x=0, y=0, longitude=0, latitude=0, resolution=0, reinsert=False, moving=False):
     """Inserts a list of Variables into the given database.
 
     windb2, WinDB2 instantiation
     dataName, string like 'MERRA2'
     dataCreator, string like 'NASA'
     variableList, list of struct.Variable objects
+    table_name_override, name of table that overrides the default naming (useful for combined variables like wind = [speed, dir])
     longitude, longitude of point, 0 by default
     latitude, latitude of a point, 0 by default"""
+    print(longitude, latitude)
 
     # See if this domain data name already exists
     domainKey = windb2.findDomainForDataName(dataName)
@@ -171,7 +170,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
         windb2.conn.commit()
 
     # Otherwise, check to see if there already exists a geomkey with the same coordinates
-    elif longitude != 0 and latitude != 0:
+    elif longitude != 0 and latitude != 0 and moving is False:
 
         # Get the geomkey for the location
         sql = "SELECT key FROM horizgeom \
@@ -184,19 +183,37 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
     else:
         geomKey = 0
 
+    # Set the table name, overriding it if necessary
+    if table_name_override is not None:
+        table_name = '{}_{}'.format(table_name_override, domainKey)
+    else:
+        table_name = '{}_{}'.format(variableList[0].name, domainKey)
+
     # Create a new geovariable table if it doesn't exist
-    sql = "SELECT to_regclass('public.{}_{}');".format(variableList[0].name, domainKey)
+    sql = "SELECT to_regclass('public.{}');".format(table_name)
     windb2.curs.execute(sql)
     if not windb2.curs.fetchone()[0]:
-        sql = "CREATE TABLE {}_{} () INHERITS(geovariable)".format(variableList[0].name, domainKey)
+        sql = "CREATE TABLE {} () INHERITS(geovariable)".format(table_name)
         try:
             windb2.curs.execute(sql)
         except Exception as detail:
             print(detail)
             sys.exit(-1)
 
+        # Add a geometry column to the geovariable table if a moving station and make the geomkey a serial column
+        if moving is True:
+            try:
+                seq_name = '{}_geomkey_seq'.format(table_name)
+                windb2.curs.execute("SELECT AddGeometryColumn('{}', 'geom', 4326, 'POINT', 2)".format(table_name))
+                windb2.curs.execute('CREATE SEQUENCE {}'.format(seq_name))
+                windb2.curs.execute("ALTER TABLE {} ALTER COLUMN geomkey SET DEFAULT nextval('{}')".format(table_name, seq_name))
+            except Exception as detail:
+                print(detail)
+                raise
+                sys.exit(-1)
+
         # Add a column for the value
-        sql = "ALTER TABLE {}_{} ADD COLUMN value real".format(variableList[0].name, domainKey)
+        sql = "ALTER TABLE {} ADD COLUMN value real".format(table_name)
         try:
             windb2.curs.execute(sql)
         except Exception as detail:
@@ -204,35 +221,50 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
             sys.exit(-1)
 
         # Add in the unique constraint because this is not inherited from parent
-        sql = "ALTER TABLE {}_{} " \
-              "ADD CONSTRAINT {}_{}_domainkey_geomkey_t_height_key UNIQUE (domainkey, geomkey, t, height)"\
-            .format(variableList[0].name, domainKey, variableList[0].name, domainKey)
-        try:
-            windb2.curs.execute(sql)
-        except Exception as detail:
-            print(detail)
+        if moving is False:
+            sql = "ALTER TABLE {} " \
+                  "ADD UNIQUE (domainkey, geomkey, t, height)"\
+                .format(table_name)
+            try:
+                windb2.curs.execute(sql)
+            except Exception as detail:
+                print(detail)
+        elif moving is True:
+            sql = "ALTER TABLE {} " \
+                  "ADD UNIQUE (domainkey, geom, t, height)"\
+                .format(table_name)
+            try:
+                windb2.curs.execute(sql)
+            except Exception as detail:
+                print(detail)
 
     # Add a 2D point if necessary
-    sql = "SELECT key FROM horizgeom WHERE domainkey={} AND st_transform(geom,4326)=st_geomfromtext('POINT({} {})',4326)"\
-        .format(domainKey, longitude, latitude)
-    windb2.curs.execute(sql)
-    geomKey = windb2.curs.fetchone()
-    if geomKey is None:
-        sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
-               VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
-            .format(domainKey, x, y, longitude, latitude)
+    if moving is False:
+        sql = "SELECT key FROM horizgeom WHERE domainkey={} AND st_transform(geom,4326)=st_geomfromtext('POINT({} {})',4326)"\
+            .format(domainKey, longitude, latitude)
         windb2.curs.execute(sql)
-        geomKey = windb2.curs.fetchone()[0]
-    else:
-        geomKey = geomKey[0]
+        geomKey = windb2.curs.fetchone()
+        if geomKey is None:
+            sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
+                   VALUES ({},{},{}, st_geomfromtext('POINT({} {})',4326)) RETURNING key"\
+                .format(domainKey, x, y, longitude, latitude)
+            windb2.curs.execute(sql)
+            geomKey = windb2.curs.fetchone()[0]
+        else:
+            geomKey = geomKey[0]
 
     # Insert all of the data
     execList = []
     t_min = None
     t_max = None
-    sql = """INSERT INTO {}_{} (domainkey, geomkey, t, height, value)
-           VALUES (%(domainkey)s, %(geomkey)s, %(t)s, %(height)s, %(value)s)"""\
-        .format(variableList[0].name, domainKey)
+    if moving is False:
+        sql = """INSERT INTO {} (domainkey, geomkey, t, height, value)
+               VALUES (%(domainkey)s, %(geomkey)s, %(t)s, %(height)s, %(value)s)""" \
+            .format(table_name)
+    elif moving is True:
+        sql = """INSERT INTO {} (domainkey, geom, t, height, value)
+               VALUES (%(domainkey)s, ST_GeomFromText(%(geom)s, 4326), %(t)s, %(height)s, %(value)s)""" \
+            .format(table_name)
     for data in variableList:
 
         # Store the min and max dates for the reinsert functionality
@@ -248,7 +280,10 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
                 t_max = data.time
 
         # Data to append
-        dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'height': data.height, 'value': data.val}
+        if moving is False:
+            dataToAppend = {'domainkey': domainKey, 'geomkey': geomKey, 't': data.time, 'height': data.height, 'value': data.val}
+        elif moving is True:
+            dataToAppend = {'domainkey': domainKey, 'geom': "POINT({} {})".format(longitude, latitude), 't': data.time, 'height': data.height, 'value': data.val}
         execList.append(dataToAppend)
 
     try:
@@ -256,10 +291,15 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, x=0, y=0, lon
         # Clean out the table before insert if reinsert is true
         if reinsert:
             print('DELETING all data between {} and {} from: {}_{}'
-                  .format(t_min, t_max, variableList[0].name, domainKey, geomKey))
-            sql = "DELETE FROM {}_{} " \
-                  "WHERE geomkey={} AND t>=timestamp with time zone'{}' AND t<=timestamp with time zone'{}'"\
-                .format(variableList[0].name, domainKey, geomKey, t_min, t_max)
+                  .format(t_min, t_max, table_name, geomKey))
+            if moving is False:
+                sql = "DELETE FROM {} " \
+                      "WHERE geomkey={} AND t>=timestamp with time zone'{}' AND t<=timestamp with time zone'{}'"\
+                    .format(table_name, geomKey, t_min, t_max)
+            elif moving is True:
+                sql = "DELETE FROM {} " \
+                      "WHERE ST_Equals(geom, ST_GeomFromText('POINT({} {})')) AND t>=timestamp with time zone'{}' AND t<=timestamp with time zone'{}'" \
+                    .format(table_name, longitude, latitude, geomKey, t_min, t_max)
             print('Reinsert delete: {}'.format(sql))
             windb2.curs.execute(sql)
 
