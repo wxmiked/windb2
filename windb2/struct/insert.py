@@ -130,17 +130,16 @@ def insertWindData(windb2, dataName, dataCreator, windData, longitude=0, latitud
     # Commit these changes
     windb2.conn.commit()
 
-def insertGeoVariable(windb2, dataName, dataCreator, variableList, table_name_override=None, x=0, y=0, longitude=0, latitude=0, resolution=0, reinsert=False, moving=False):
+def insertGeoVariable(windb2, dataName, dataCreator, dataToInsert, table_name_override=None, x=0, y=0, longitude=0, latitude=0, resolution=0, reinsert=False, moving=False):
     """Inserts a list of Variables into the given database.
 
     windb2, WinDB2 instantiation
     dataName, string like 'MERRA2'
     dataCreator, string like 'NASA'
-    variableList, list of struct.Variable objects
+    dataToInsert, list of struct.Variable objects
     table_name_override, name of table that overrides the default naming (useful for combined variables like wind = [speed, dir])
     longitude, longitude of point, 0 by default
     latitude, latitude of a point, 0 by default"""
-    print(longitude, latitude)
 
     # See if this domain data name already exists
     domainKey = windb2.findDomainForDataName(dataName)
@@ -155,7 +154,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, table_name_ov
 
         # Insert the name into the domain table which returns the new key
         sql = "INSERT INTO domain(name, resolution, units, datasource) VALUES ('{}', '{}', '{}', '{}') RETURNING key"\
-            .format(dataName, resolution, variableList[0].units, dataCreator)
+            .format(dataName, resolution, dataToInsert[0].units, dataCreator)
         try:
             windb2.curs.execute(sql)
         except psycopg2.ProgrammingError as detail:
@@ -187,7 +186,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, table_name_ov
     if table_name_override is not None:
         table_name = '{}_{}'.format(table_name_override, domainKey)
     else:
-        table_name = '{}_{}'.format(variableList[0].name, domainKey)
+        table_name = '{}_{}'.format(dataToInsert[0].name, domainKey)
 
     # Create a new geovariable table if it doesn't exist
     sql = "SELECT to_regclass('public.{}');".format(table_name)
@@ -265,7 +264,7 @@ def insertGeoVariable(windb2, dataName, dataCreator, variableList, table_name_ov
         sql = """INSERT INTO {} (domainkey, geom, t, height, value)
                VALUES (%(domainkey)s, ST_GeomFromText(%(geom)s, 4326), %(t)s, %(height)s, %(value)s)""" \
             .format(table_name)
-    for data in variableList:
+    for data in dataToInsert:
 
         # Store the min and max dates for the reinsert functionality
         if reinsert:
