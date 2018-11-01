@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - 2018-11-01
+* Added ability to have moving observations in variable tables
+
 ## [3.3.0] - 2018-10-15
 * WRF coordinates are now ingested in their native lambert conformal conic coordinate
 * Fixed bug where overwriting data does actually write new data
