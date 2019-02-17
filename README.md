@@ -1,11 +1,6 @@
 Wind Database version 2 (WinDB2)
 ======
 
-# Contact
-Mike Dvorak
-[Sail Tactics](http://sailtactics.com)
-[Contact](https://app.sailtactics.com/support)
-
 # Overview
 
 WinDB2 is a geospatial database and a suite of associated utilities to store geodata in a flexible manner. This code is a work in progress and a partial rewrite of the original WinDB software that Mike Dvorak used for his PhD research in offshore wind resource assessment at Stanford University. The database schema is written for PostgreSQL/PostGIS. The plotting, analysis, and utility scripts were written in Java, BASH, and Python. The currently implementation, WinDB2 is completely written in Python and PostgreSQL/PostGIS only.
