@@ -65,7 +65,7 @@ class Insert(object):
             sys.exit(-1)
 
         # Get the horiz resolution, which was calculated before
-        sql = "SELECT resolution FROM domain WHERE key=" + domain_key
+        sql = "SELECT resolution FROM domain WHERE key={}".format(domain_key)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         res_m = self.windb2.curs.fetchone()[0]
@@ -174,7 +174,7 @@ class Insert(object):
         # Turn autocommit back off
         self.windb2.conn.autocommit = False
 
-    def insert_horiz_geom(self, domainKey, xCoordArray, yCoordArr, srid):
+    def insert_horiz_geom(self, domainKey, xCoordArray, yCoordArr, srid, mask=None):
         """Inserts horizontal geometries into HorizGeom table. Assumes that the grid is not changing over time.
         
         domainKey The key of the domain you want to get the HorizWindGeom keys for
@@ -188,25 +188,46 @@ class Insert(object):
         # Set the SRID of the data
         self.srid = srid
 
+        # Create a geometry index if we're going to mask this gridded data
+        if mask is not None:
+            sql = """CREATE INDEX IF NOT EXISTS {}_geom_index 
+                     ON {} 
+                     USING GIST(ST_Transform(geom, {}))""".format(mask, mask, srid)
+            self.logger.debug(sql)
+            self.windb2.curs.execute(sql)
+
         # Create new grid points, using a temp file for the SQL copy command
         tempFile = tempfile.NamedTemporaryFile(mode='w')
+        count_masked_skip = 0
         for y in range(xCoordArray.shape[1]):
-            
+
             # Info that continually updates
-            status_msg = "\rInserting new points: {:000.1%} done"
-            sys.stdout.write(status_msg.format(float(y) / xCoordArray.shape[1]))
+            status_msg = "\rInserting new points: {:000.1%} done (skipped {:000.1%})"
+            skipped_fraction = float(count_masked_skip) / (xCoordArray.shape[1] * xCoordArray.shape[2])
+            sys.stdout.write(status_msg.format(float(y) / xCoordArray.shape[1],
+                             skipped_fraction))
             sys.stdout.flush()
 
             for x in range(xCoordArray.shape[2]):
-                
+    
                 # Create the grid point
                 # You have to do it with this following syntax (ST_GeomFromText doesn't work with the COPY_FROM function)
                 # See http://postgis.17.x6.nabble.com/Adding-postgis-column-in-COPY-command-td3520584.html
-                geom = 'SRID=4326;POINT({} {})'.format(xCoordArray[0, y, x], yCoordArr[0, y, x])
+                geom = 'SRID={};POINT({} {})'.format(srid, xCoordArray[0, y, x], yCoordArr[0, y, x])
+
+                # Make sure this point is within the geometry index, which saves processing later
+                if mask is not None:
+                    sql = """SELECT NOT(geom && ST_GeomFromText('POINT({} {})', {})) 
+                             FROM {}""".format(xCoordArray[0, y, x], yCoordArr[0, y, x], srid, mask)
+                    self.windb2.curs.execute(sql)
+                    if self.windb2.curs.fetchone()[0]:
+                        count_masked_skip += 1
+                        continue
+
                 print('{}, {}, {}, {}'.format(geom, domainKey, x, y), file=tempFile)
 
         # Print the last update message
-        sys.stdout.write((status_msg + '\n').format(1.))
+        sys.stdout.write((status_msg + '\n').format(1., skipped_fraction))
 
         # Create a temporary table to import the native coordinate into
         self.windb2.curs.execute('CREATE TEMP TABLE horizgeom_import () INHERITS (horizgeom) ON COMMIT DROP')

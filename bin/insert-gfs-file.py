@@ -47,10 +47,12 @@ windb2.connect()
 windb2_config = config.WinDB2GFSConfigParser('windb2-gfs.json')
 
 # Set up logging
+LOGLEVEL = os.environ.get('LOGLEVEL', 'ERROR').upper()
 logger = logging.getLogger('windb2')
 try:
-    logger.setLevel(windb2_config.config['loglevel'])
+    logger.setLevel(LOGLEVEL)
 except KeyError:
+    print('invalid log level: {}, setting to INFO by default'.format(LOGLEVEL), file=sys.stderr)
     logger.setLevel(logging.INFO)
 logging.basicConfig()
 
@@ -65,6 +67,7 @@ gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs={'
 
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
 for var in windb2_config.config['vars'].keys():
+    logger.debug(gribfile[var].GRIB_name)
     if isinstance(windb2_config.config['vars'][var]['insert'], list):  # will fail if insert does not exist
         (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, domain_key=args.domain_key,
                                                                          replace_data=args.overwrite, mask=args.mask)

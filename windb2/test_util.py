@@ -1,6 +1,6 @@
 import unittest
 import numpy
-import util
+from windb2 import util
 
 
 class TestUtil(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestUtil(unittest.TestCase):
     def testGetDegFromCardinal(self):
 
         # Valid case
-        self.assertEquals(util.get_deg_from_cardinal('NE'), 45)
+        self.assertEqual(util.get_deg_from_cardinal('NE'), 45)
 
         # Invalid key
         with self.assertRaises(KeyError):

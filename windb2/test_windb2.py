@@ -1,10 +1,10 @@
 import unittest
-import windb2
+from windb2 import windb2
 
 class TestHeightInterpMethods(unittest.TestCase):
 
     def setUp(self):
-        self.db = windb2.WinDB2('localhost', 'windb2-test-1', dbUser='sailtactics')
+        self.db = windb2.WinDB2('localhost', 'windb2-test-1', dbUser='postgres')
         self.db.connect()
 
     def test_table_exists(self):

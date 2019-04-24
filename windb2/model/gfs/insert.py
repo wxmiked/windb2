@@ -13,6 +13,7 @@ import numpy
 import xarray
 from windb2.insert import Insert
 from windb2 import util
+import windb2.model.gfs.util
 
 class InsertGFS(Insert):
     """Class for inserting GFS into WinDB2."""
@@ -55,6 +56,7 @@ class InsertGFS(Insert):
         nlat = gfsfile.latitude.shape[0]
         x_coord_array = \
             numpy.tile(gfsfile.longitude.data[numpy.newaxis], (nlat, 1))[numpy.newaxis]  # insert_horiz_geom wants a 2D coordinate below
+        x_coord_array = windb2.model.gfs.util.center_coords_on_prime_meridian(x_coord_array)  # make centered on zero instead of going 0 to 360 degrees
         y_coord_array = \
             numpy.tile(gfsfile.latitude.data[numpy.newaxis], (nlong, 1)).T[numpy.newaxis]  # insert_horiz_geom wants a 2D coordinate below
         init_t = \
@@ -68,6 +70,7 @@ class InsertGFS(Insert):
             domain_key = self.create_new_domain('Global Forecast System',
                                                 gfsfile.attrs['GRIB_centreDescription'],
                                                 resolution, 'deg', mask)
+            self.insert_horiz_geom(domain_key, x_coord_array, y_coord_array, 4326, mask=mask)  # SRID=4326 is WGS84 for GFS
 
             # Mask the domain if necessary
             # TODO unclear why this is not done inside of create_new_domain
@@ -78,7 +81,6 @@ class InsertGFS(Insert):
         if not self.windb2.table_exists('{}_{}'.format(var_name.lower(), domain_key)):
             self.create_new_table(domain_key, var_name, ('value',), ('real',))
             self._create_initialization_time_column(var_name.lower(), domain_key)
-        self.insert_horiz_geom(domain_key, x_coord_array, y_coord_array, 4326)  # SRID=4326 is WGS84
 
         # Get the geomkeys associated with the coordinates
         horizgeomkey = self.calculateHorizWindGeomKeys(domain_key, nlong, nlat)
