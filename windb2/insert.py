@@ -32,11 +32,11 @@ class Insert(object):
         # Create a new domain
         sql = "INSERT INTO Domain(name, resolution, units, datasource, mask) VALUES ('{}', '{}', '{}', '{}', {}) " \
               "RETURNING key".format(domain_name, resolution, units, data_source, ("'" + mask + "'") if mask is not None else 'NULL')
-        self.logger.debug("Running command to create new domain: " + sql);
-        self.windb2.curs.execute(sql);
+        self.logger.debug("Running command to create new domain: " + sql)
+        self.windb2.curs.execute(sql)
         
         # Get the unique key
-        domain_key = self.windb2.curs.fetchone()[0];
+        domain_key = self.windb2.curs.fetchone()[0]
         
         # Info
         print("Created domain number: {}".format(domain_key))
@@ -65,7 +65,7 @@ class Insert(object):
             sys.exit(-1)
 
         # Get the horiz resolution, which was calculated before
-        sql = "SELECT resolution FROM domain WHERE key=" + domain_key
+        sql = "SELECT resolution FROM domain WHERE key={}".format(domain_key)
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
         res_m = self.windb2.curs.fetchone()[0]
@@ -91,12 +91,12 @@ class Insert(object):
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
-		# Create a temporary table of the buffered mask object.  While this isn't wholly
-		# necessary, it does allow you to see that progress is being made to making the mask.
-		# Also, sometimes slight errors in projections cause points to be missed by using only
-		# a buffer size of resMeters/2.0. Since the cost is only including a few more points in the
+        # Create a temporary table of the buffered mask object.  While this isn't wholly
+        # necessary, it does allow you to see that progress is being made to making the mask.
+        # Also, sometimes slight errors in projections cause points to be missed by using only
+        # a buffer size of resMeters/2.0. Since the cost is only including a few more points in the
         # database and the risk is not building the database with the required info, the
-		# buffer size has been increased to resMeters.
+        # buffer size has been increased to resMeters.
         self.logger.info('Creating the mask table for domain {} with the mask geometry {}'.format(domain_key, mask))
         sql = 'CREATE TABLE buffered_mask_{}(key SERIAL)'.format(domain_key)
         self.logger.debug(sql)
@@ -155,7 +155,7 @@ class Insert(object):
         self.logger.debug(sql)
         self.windb2.curs.execute(sql)
 
-		# Create an index on the geomkey in the geom_mask for the domain
+        # Create an index on the geomkey in the geom_mask for the domain
         sql = 'CREATE INDEX geom_mask_geomkey_index_{} ' \
               ' ON geom_mask_{}(geomkey)'.format(domain_key, domain_key)
         self.logger.debug(sql)
@@ -174,7 +174,7 @@ class Insert(object):
         # Turn autocommit back off
         self.windb2.conn.autocommit = False
 
-    def insert_horiz_geom(self, domainKey, xCoordArray, yCoordArr, srid):
+    def insert_horiz_geom(self, domainKey, xCoordArray, yCoordArr, srid, mask=None):
         """Inserts horizontal geometries into HorizGeom table. Assumes that the grid is not changing over time.
         
         domainKey The key of the domain you want to get the HorizWindGeom keys for
@@ -186,27 +186,48 @@ class Insert(object):
         """
         
         # Set the SRID of the data
-        self.srid = srid;
+        self.srid = srid
+
+        # Create a geometry index if we're going to mask this gridded data
+        if mask is not None:
+            sql = """CREATE INDEX IF NOT EXISTS {}_geom_index 
+                     ON {} 
+                     USING GIST(ST_Transform(geom, {}))""".format(mask, mask, srid)
+            self.logger.debug(sql)
+            self.windb2.curs.execute(sql)
 
         # Create new grid points, using a temp file for the SQL copy command
-        tempFile = tempfile.NamedTemporaryFile(mode='w');
+        tempFile = tempfile.NamedTemporaryFile(mode='w')
+        count_masked_skip = 0
         for y in range(xCoordArray.shape[1]):
-            
+
             # Info that continually updates
-            status_msg = "\rInserting new points: {:000.1%} done"
-            sys.stdout.write(status_msg.format(float(y)/xCoordArray.shape[1]))
+            status_msg = "\rInserting new points: {:000.1%} done (skipped {:000.1%})"
+            skipped_fraction = float(count_masked_skip) / (xCoordArray.shape[1] * xCoordArray.shape[2])
+            sys.stdout.write(status_msg.format(float(y) / xCoordArray.shape[1],
+                             skipped_fraction))
             sys.stdout.flush()
 
             for x in range(xCoordArray.shape[2]):
-                
+    
                 # Create the grid point
                 # You have to do it with this following syntax (ST_GeomFromText doesn't work with the COPY_FROM function)
                 # See http://postgis.17.x6.nabble.com/Adding-postgis-column-in-COPY-command-td3520584.html
-                geom = 'SRID=4326;POINT({} {})'.format(xCoordArray[0, y, x], yCoordArr[0, y, x])
+                geom = 'SRID={};POINT({} {})'.format(srid, xCoordArray[0, y, x], yCoordArr[0, y, x])
+
+                # Make sure this point is within the geometry index, which saves processing later
+                if mask is not None:
+                    sql = """SELECT NOT(geom && ST_GeomFromText('POINT({} {})', {})) 
+                             FROM {}""".format(xCoordArray[0, y, x], yCoordArr[0, y, x], srid, mask)
+                    self.windb2.curs.execute(sql)
+                    if self.windb2.curs.fetchone()[0]:
+                        count_masked_skip += 1
+                        continue
+
                 print('{}, {}, {}, {}'.format(geom, domainKey, x, y), file=tempFile)
 
         # Print the last update message
-        sys.stdout.write((status_msg + '\n').format(1.))
+        sys.stdout.write((status_msg + '\n').format(1., skipped_fraction))
 
         # Create a temporary table to import the native coordinate into
         self.windb2.curs.execute('CREATE TEMP TABLE horizgeom_import () INHERITS (horizgeom) ON COMMIT DROP')
@@ -216,7 +237,7 @@ class Insert(object):
         try:
             self.windb2.curs.copy_from(open(tempFile.name, 'r'), "horizgeom_import", sep=',', columns=('geom', 'domainKey', 'x', 'y'))
         except psycopg2.IntegrityError as e:
-            print >> sys.stderr, "ERROR ON INSERT: ", e.message
+            print("ERROR ON INSERT: ", e.message, file=sys.stderr)
             raise e
 
         # Insert all of the points in the native WRF SRID
@@ -224,7 +245,7 @@ class Insert(object):
             count = self.windb2.curs.execute('INSERT INTO horizgeom SELECT key, domainkey, x, y, ST_Transform(geom, {}) FROM horizgeom_import WHERE domainkey={}'.format(self.srid, domainKey))
             self.logger.debug('Inserted {} new points'.format(self.windb2.curs.rowcount))
         except psycopg2.IntegrityError as e:
-            print >> sys.stderr, "ERROR ON INSERT: ", e.message
+            print("ERROR ON INSERT: ", e.message, file=sys.stderr)
             raise e
         
         # Commit the changes if successful
@@ -244,7 +265,7 @@ class Insert(object):
         """
         
         # Make sure all of the extra columns to add match up in number
-        #TODO these should be exceptions
+        # TODO these should be exceptions
         assert(len(varList) == len(varType))
         if constraint is not None:
             assert(len(constraint) <= len(varList))
@@ -262,9 +283,9 @@ class Insert(object):
         
         # Create indexes on these tables
         self.windb2.curs.execute("CREATE INDEX {}_geomkey_{} ON {}_{}(geomkey)".format(tableName, domainKey,
-                                                                                                tableName, domainKey))
+                                                                                       tableName, domainKey))
         self.windb2.curs.execute("CREATE INDEX {}_timestamp_{} ON {}_{}(t)".format(tableName, domainKey,
-                                                                                            tableName, domainKey))
+                                                                                   tableName, domainKey))
         
         # Add the extra columns and constraints required for this variable
         for i in range(len(varList)):
@@ -276,7 +297,7 @@ class Insert(object):
             self.logger.info("Running: " + sql)
             self.windb2.curs.execute(sql)
 
-	    # Add a trigger that just ignores any wind speed insert where the geomkey isn't in the mask
+        # Add a trigger that just ignores any wind speed insert where the geomkey isn't in the mask
         # try:
         self.windb2.curs.execute('SELECT mask FROM domain WHERE key={}'.format(domainKey))
         mask = self.windb2.curs.fetchone()[0]
@@ -295,22 +316,21 @@ class Insert(object):
 
         return
 
-    
     def calculateHorizWindGeomKeys(self, domainKey, xMax, yMax):
         """Given a domain it figures out which HorizWindGeom key corresponds to each x,y pair in a domain.
         This saves a lot of time by removing a sub-query that would normally be required to do this
         many times throughout the insert.
-            
+           
         domainKey The key of the domain you want to get the HorizWindGeom keys for.
         xMax max x dimension
         yMax max y dimension.
-        
+      
         Returns a 2D array [x][y] of the corresponding HorizWindGeom key for each (x,y) pair.
         Throws an SQLException"""
-         
+       
         # Create  a new 2D array to store the keys
-        keyArray = numpy.zeros((xMax,yMax),numpy.int)
-         
+        keyArray = numpy.zeros((xMax, yMax), numpy.int)
+       
         # Info
         self.logger.info("Calculating the x,y pair geomkeys ({},{})...".format(xMax, yMax))
 
@@ -324,7 +344,7 @@ class Insert(object):
         for row in self.windb2.curs.fetchall():
             
             # Debug
-            #print("keyArray[{}, {}] = {}".format(row[0], row[1], row[2]))
+            # print("keyArray[{}, {}] = {}".format(row[0], row[1], row[2]))
             
             keyArray[row[0], row[1]] = row[2]
            
@@ -369,8 +389,8 @@ class Insert(object):
 
             # Create a new windspeed table
             self.create_new_table(domain_key, 'wind', ('speed', 'direction'), ('real', 'smallint'),
-                                      constraint=('speed_postive', 'direction_degrees'),
-                                      check=('speed>=0', 'direction>=0 AND direction<=360'))
+                                  constraint=('speed_postive', 'direction_degrees'),
+                                  check=('speed>=0', 'direction>=0 AND direction<=360'))
 
             # Add a 2D point for the made up location of the
             sql = "INSERT INTO horizgeom(domainkey, x, y, geom) \
@@ -419,10 +439,8 @@ class Insert(object):
         else:
             geomkey = 0
 
-
         # Open a temporary file to COPY from
         tempFile = tempfile.NamedTemporaryFile(mode='w')
-
 
         # Insert all of the data
         table_name = 'wind_{}'.format(domain_key)
@@ -430,7 +448,7 @@ class Insert(object):
 
             # Add this row to be inserted into the database
             print('{}, {}, {}, {}, {}, {}'.format(domain_key, geomkey, data.time, data.speed, int(data.direction),
-                                                           data.height), file=tempFile)
+                                                  data.height), file=tempFile)
 
         # Insert the data
         tempFile.flush()
@@ -442,7 +460,7 @@ class Insert(object):
             # Delete the duplicate data
             # TODO this doesn't exactly work as well as it does with WRF database because many different times need
             # TODO to be deleted for this to work
-            errorTest = 'duplicate key value violates unique constraint "' + table_name + '_domainkey_geomkey_t_height_key"'
+            errorTest = 'duplicate key value violates unique constraint "{}_domainkey_geomkey_t_height_key"'.format(table_name)
             if re.search(errorTest, str(e.pgerror)):
 
                 # Delete the data and retry the insert if asked to replace data in the function call

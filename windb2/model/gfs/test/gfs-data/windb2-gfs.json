@@ -1,0 +1,11 @@
+{
+  "vars": {
+    "prate": {
+      "dims": 2,
+      "insert": [
+        10
+      ]
+    }
+  },
+  "loglevel": "WARNING"
+}

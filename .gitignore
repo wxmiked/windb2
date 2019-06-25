@@ -2,4 +2,6 @@
 *.pyc
 *.tmp
 *~
-
+.flake8
+.vscode/*
+.venv/*
