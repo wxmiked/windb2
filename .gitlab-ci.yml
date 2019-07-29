@@ -1,0 +1,2 @@
+docker build:
+  script: docker build -t windb2:$CI_COMMIT_REF_SLUG .
