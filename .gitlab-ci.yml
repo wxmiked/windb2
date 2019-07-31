@@ -3,4 +3,4 @@ image: docker:stable
 docker build:
   script: docker build -t registry.gitlab.com/wxverify/windb2:$CI_COMMIT_REF_SLUG .
 docker push:
-  script: docker push registry.gitlab.com/wxverify/windb2::$CI_COMMIT_REF_SLUG
+  script: docker push registry.gitlab.com/wxverify/windb2:$CI_COMMIT_REF_SLUG
