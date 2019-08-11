@@ -59,7 +59,8 @@ except psycopg2.OperationalError as e:
         # Create the database
         print('database "{}" does not exist... trying to create it'.format(args.dbname))
         try:
-            conn = psycopg2.connect(user=args.dbuser, host=args.dbhost, database='postgres')
+            whichhost = '' if args.dbhost == 'localhost' else args.dbhost
+            conn = psycopg2.connect(user=args.dbuser, host=whichhost, database='postgres')
         except psycopg2.OperationalError as e:
             print('Unable to create a new database. You will have to do this manually outside of this script.')
             print('Run this command to create the database: % createdb --user={} {}'.format(args.dbuser, args.dbname))
