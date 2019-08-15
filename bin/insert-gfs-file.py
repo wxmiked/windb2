@@ -60,8 +60,7 @@ logging.basicConfig()
 inserter = insert.InsertGFS(windb2, windb2_config)
 
 # Open the WRF netCDF file
-gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs={'filter_by_keys':
-                                                                               {'typeOfLevel': 'surface'}})
+gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs={filter_by_keys={'typeOfLevel': 'heightAboveGround'}})
                                                                                 # 'stepType': 'instant'}})
 # gribfile = xarray_store.open_datasets(args.gribfile, backend_kwargs={'errors': 'ignore'})
 
