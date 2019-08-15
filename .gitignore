@@ -5,3 +5,5 @@
 .flake8
 .vscode/*
 .venv/*
+gfs.*z*
+**/gfs.*
