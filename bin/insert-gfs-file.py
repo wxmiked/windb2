@@ -48,7 +48,7 @@ windb2_config = config.WinDB2GFSConfigParser('windb2-gfs.json')
 
 # Set up logging
 LOGLEVEL = os.environ.get('LOGLEVEL', 'ERROR').upper()
-logger = logging.getLogger('windb2')
+logger = logging.getLogger(__name__)
 try:
     logger.setLevel(LOGLEVEL)
 except KeyError:
@@ -60,10 +60,8 @@ logging.basicConfig()
 inserter = insert.InsertGFS(windb2, windb2_config)
 
 # Open the WRF netCDF file
-gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs={'filter_by_keys': 
-                                                                                {'typeOfLevel': 'heightAboveGround'}})
-                                                                                # 'stepType': 'instant'}})
-# gribfile = xarray_store.open_datasets(args.gribfile, backend_kwargs={'errors': 'ignore'})
+gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', 
+                               backend_kwargs={'filter_by_keys': {'typeOfLevel': 'heightAboveGround', 'level': 10}})
 
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
 for var in windb2_config.config['vars'].keys():
