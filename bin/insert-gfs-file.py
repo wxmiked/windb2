@@ -70,11 +70,11 @@ for var in windb2_config.config['vars']:
 
         # Calculate the level required
         backend_kwargs = {'filter_by_keys': {'typeOfLevel': var_config['cfgribTypeOfLevel']}}
-        #if var_config['insert'][0] != 0:
+        # if var_config['insert'][0] != 0:
         backend_kwargs['filter_by_keys']['level'] = var_config['insert'][0]
 
         # Open the GRIB2 file using cfgrib
-        logger.debug(f'Trying to open variable: {var}')
+        logger.debug('Trying to open variable: {}'.format(var))
         with xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs=backend_kwargs) as gribfile:
             (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, domain_key=args.domain_key,
                                                                              replace_data=args.overwrite,
