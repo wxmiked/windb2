@@ -17,6 +17,28 @@
             "type": "array",
             "minItems": 1
           },
+          "cfgribTypeOfLevel": {
+            "type": "string",
+            "enum": [
+              "surface",
+              "unknown",
+              "isobaricInhPa",
+              "meanSea",
+              "depthBelowLandLayer",
+              "heightAboveGround",
+              "atmosphere",
+              "nominalTop",
+              "heightAboveGroundLayer",
+              "tropopause",
+              "maxWind",
+              "heightAboveSea",
+              "isothermZero",
+              "pressureFromGroundLayer",
+              "sigmaLayer",
+              "sigma",
+              "potentialVorticity"
+            ]
+          },
           "copy": {
             "type": "boolean"
           }

@@ -1,6 +1,6 @@
 attrs==18.2.0
 cffi==1.12.1
-cfgrib==0.9.5.6
+cfgrib==0.9.7.1
 cftime==1.0.3.4
 Click==7.0
 cycler==0.10.0

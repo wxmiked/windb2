@@ -17,6 +17,7 @@ import argparse
 from windb2 import windb2
 from windb2.model.gfs import insert, config
 import logging
+import cfgrib
 from cfgrib import xarray_store
 import xarray
 
@@ -48,7 +49,7 @@ windb2_config = config.WinDB2GFSConfigParser('windb2-gfs.json')
 
 # Set up logging
 LOGLEVEL = os.environ.get('LOGLEVEL', 'ERROR').upper()
-logger = logging.getLogger('windb2')
+logger = logging.getLogger(__name__)
 try:
     logger.setLevel(LOGLEVEL)
 except KeyError:
@@ -59,18 +60,25 @@ logging.basicConfig()
 # Create the inserter from this config
 inserter = insert.InsertGFS(windb2, windb2_config)
 
-# Open the WRF netCDF file
-gribfile = xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs={'filter_by_keys':
-                                                                               {'typeOfLevel': 'surface'}})
-                                                                                # 'stepType': 'instant'}})
-# gribfile = xarray_store.open_datasets(args.gribfile, backend_kwargs={'errors': 'ignore'})
-
 # Insert the file, domainKey should be None if it wasn't set, which will create a new domain
-for var in windb2_config.config['vars'].keys():
-    logger.debug(gribfile[var].GRIB_name)
-    if isinstance(windb2_config.config['vars'][var]['insert'], list):  # will fail if insert does not exist
-        (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, domain_key=args.domain_key,
-                                                                         replace_data=args.overwrite, mask=args.mask)
+for var in windb2_config.config['vars']:
+    var_config = windb2_config.config['vars'][var]
+    if isinstance(var_config['insert'], list):  # will fail if insert does not exist
+
+        # Debug
+        logger.debug(cfgrib.open_datasets(args.gribfile))
+
+        # Calculate the level required
+        backend_kwargs = {'filter_by_keys': {'typeOfLevel': var_config['cfgribTypeOfLevel']}}
+        # if var_config['insert'][0] != 0:
+        backend_kwargs['filter_by_keys']['level'] = var_config['insert'][0]
+
+        # Open the GRIB2 file using cfgrib
+        logger.debug('Trying to open variable: {}'.format(var))
+        with xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs=backend_kwargs) as gribfile:
+            (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, domain_key=args.domain_key,
+                                                                             replace_data=args.overwrite,
+                                                                             mask=args.mask)
 
     # Set the domain key so that we don't create the same domain twice
     if not args.domain_key:
