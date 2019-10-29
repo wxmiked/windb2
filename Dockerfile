@@ -8,4 +8,4 @@ COPY / /windb2/
 COPY docker/create-windb2-in-docker.sh /docker-entrypoint-initdb.d
 
 # Allow connections from outside using an MD5 password
-RUN echo 'listen_addresses = "*"' >> /var/lib/postgresql/data/postgresql.conf
+#RUN echo 'listen_addresses = "*"' >> /var/lib/postgresql/data/postgresql.conf
