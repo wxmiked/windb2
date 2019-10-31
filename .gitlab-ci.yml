@@ -1,55 +1,6 @@
-build-client-master:
-  # Official docker image.
-  image: docker:latest
-  stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -t "$CI_REGISTRY_IMAGE/windb2-client" . -f ./Dockerfile-client
-    - docker push "$CI_REGISTRY_IMAGE/windb2-client"
-  only:
-    - master
-    
-build-server-master:
-  # Official docker image.
-  image: docker:latest
-  stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -t "$CI_REGISTRY_IMAGE/windb2-server" . -f ./Dockerfile-server
-    - docker push "$CI_REGISTRY_IMAGE/windb2-server"
-  only:
-    - master
-    
-build-client-commit:
-  # Official docker image.
-  image: docker:latest
-  stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -t "$CI_REGISTRY_IMAGE/windb2-client:$CI_COMMIT_REF_SLUG" . -f ./Dockerfile-client
-    - docker push "$CI_REGISTRY_IMAGE/windb2-client:$CI_COMMIT_REF_SLUG"
-  except:
-    - master
-    
-build-server-commit:
-  # Official docker image.
-  image: docker:latest
-  stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -t "$CI_REGISTRY_IMAGE/windb2-server:$CI_COMMIT_REF_SLUG" . -f ./Dockerfile-server
-    - docker push "$CI_REGISTRY_IMAGE/windb2-server:$CI_COMMIT_REF_SLUG"
-  except:
-    - master
+include:
+  - project: "ramboll-shair/gitlab-ci-resources"
+    file: "dual-docker.gitlab-ci-template.yml"
+variables:
+    FIRST: "client"
+    SECOND: "server"
