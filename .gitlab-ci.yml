@@ -1,11 +1,40 @@
-build:
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+build-client-master:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
   script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-server --destination $CI_REGISTRY_IMAGE/windb2-server:$CI_COMMIT_TAG
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-client --destination $CI_REGISTRY_IMAGE/windb2-client:$CI_COMMIT_TAG
+
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client" -f Dockerfile-client .
+    - docker push "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client"
   only:
-    - tags
+    - master
+
+build-server-master:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server" -f Dockerfile-server .
+    - docker push "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server"
+  only:
+    - master
+
+build-client:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG" -f Dockerfile-client .
+    - docker push "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG"
+  except:
+    - master
+
+build-server:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:$CI_COMMIT_REF_SLUG" -f Dockerfile-server .
+    - docker push "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:$CI_COMMIT_REF_SLUG"
+  except:
+    - master
