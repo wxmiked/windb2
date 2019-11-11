@@ -5,7 +5,8 @@ COPY requirements.txt .
 
 RUN apt-get update \
     && apt-get install -y wget python3 postgresql-12-postgis-2.5 postgis \
-       python3-pip libeccodes-dev libgeos-dev \
+       python3-pip libeccodes-dev  \
+    && apt-get install -y libgeos-dev \
     && pip3 install -r requirements.txt \
     && rm -rf /var/lib/apt/lists/*
 
