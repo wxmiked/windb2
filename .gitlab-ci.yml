@@ -3,11 +3,10 @@ image: docker:latest
 services:
   - docker:dind
 
-before_script:
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-
 build-client:
   stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:latest || true
     - docker build --cache-from $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:latest --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG" -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:latest" -f Dockerfile-client .
@@ -16,6 +15,8 @@ build-client:
 
 build-server:
   stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:latest || true
     - docker build --cache-from $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:latest --pull -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:$CI_COMMIT_REF_SLUG" -t "$CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:latest" -f Dockerfile-server .
@@ -24,11 +25,13 @@ build-server:
 
 test-windb2-gfs:
     stage: test
+    before_script:
+      - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     script:
       - ln -s config/windb2-gfs.json
       - docker run --name windb2-server -p 5432:5432 -d $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-server:$CI_COMMIT_REF_SLUG
-      - docker run -v $PWD:/workdir -w /workdir curlimages/curl sh -c "curl https://www.weather.gov/source/gis/Shapefiles/County/s_11au16.zip -o states.zip && unzip states.zip"
-      - docker run -v $PWD:/workdir -w /workdir curlimages/curl sh -c 'curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?file=gfs.t00z.pgrb2.0p25.f001&lev_10_m_above_ground=on&lev_2_m_above_ground=on&lev_surface=on&var_DPT=on&var_PRES=on&var_PRMSL=on&var_RH=on&var_TMP=on&var_UGRD=on&var_VGRD=on&var_PRATE=on&subregion=&leftlon=-129&rightlon=-114&toplat=43&bottomlat=31&dir=%2Fgfs.$(date -d "@$(($(date +%s) - 86400))" +%Y%m%d)%2F00" -o gfs.grib2'
+      - docker run -v $PWD:/workdir -w /workdir curlimages/curl:7.67.0 sh -c "curl https://www.weather.gov/source/gis/Shapefiles/County/s_11au16.zip -o states.zip && unzip states.zip"
+      - docker run -v $PWD:/workdir -w /workdir curlimages/curl:7.67.0 sh -c 'curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?file=gfs.t00z.pgrb2.0p25.f001&lev_10_m_above_ground=on&lev_2_m_above_ground=on&lev_surface=on&var_DPT=on&var_PRES=on&var_PRMSL=on&var_RH=on&var_TMP=on&var_UGRD=on&var_VGRD=on&var_PRATE=on&subregion=&leftlon=-129&rightlon=-114&toplat=43&bottomlat=31&dir=%2Fgfs.$(date -d "@$(($(date +%s) - 86400))" +%Y%m%d)%2F00" -o gfs.grib2'
       - docker run -v $PWD:/workdir -w /workdir --network host $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG sh -c 'shp2pgsql -s 4269 s_11au16.shp us_boundary_r1 | psql -U postgres -h localhost windb2'
       - docker run -v $PWD:/workdir -w /workdir --network host $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG psql -U postgres -h localhost windb2 -c "CREATE TABLE california_boundary_r1 AS SELECT * FROM us_boundary_r1 WHERE state='CA'"
       - docker run -v $PWD:/workdir -w /workdir --network host $CI_REGISTRY_IMAGE/${CI_PROJECT_NAME}-client:$CI_COMMIT_REF_SLUG /windb2/bin/insert-gfs-file.py 127.0.0.1 postgres windb2 -n gfs.grib2 -m california_boundary_r1
