@@ -29,7 +29,7 @@ class InsertGFS(Insert):
         # Logging
         self.logger = logging.getLogger('windb2')
 
-    def insert_variable(self, gfsfile, var_name, domain_key=None, replace_data=False, sql_where="true",
+    def insert_variable(self, gfsfile, var_name, table_var_name, domain_key=None, replace_data=False, sql_where="true",
                         mask=None, zero_seconds=False):
         """Inserts a GFS GRIB into a WinDB2 database.
        *
@@ -78,9 +78,9 @@ class InsertGFS(Insert):
                 self.mask_domain(domain_key, mask)
 
         # Create a new table if necessary and add an initialization time column
-        if not self.windb2.table_exists('{}_{}'.format(var_name.lower(), domain_key)):
+        if not self.windb2.table_exists('{}_{}'.format(table_var_name, domain_key)):
             self.create_new_table(domain_key, var_name, ('value',), ('real',))
-            self._create_initialization_time_column(var_name.lower(), domain_key)
+            self._create_initialization_time_column(table_var_name, domain_key)
 
         # Get the geomkeys associated with the coordinates
         horizgeomkey = self.calculateHorizWindGeomKeys(domain_key, nlong, nlat)
