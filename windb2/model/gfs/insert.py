@@ -35,7 +35,8 @@ class InsertGFS(Insert):
        *
        * windb2Conn - Connection to a WinDB2 database.
        * ncfile - Either an open file or a string name of a file to open.
-       * var_name - Name of WinDB2 supported variable or a WRF 3D variable (currently WIND, THETA, RHO).
+       * var_name - Variable name in the GFS file
+       * table_var_name - Name of the table, which can be different than the GFS variable name (e.g. a CF Convention compliant name)
        * domain_key - Existing domain key in the database. If left blank, a new domain will be created.
        * replace_data - Deletes data for the same time in the database if True. Useful for freshening data.
        * file_type - Type of netCDF file to insert: {'windb2' (default), or 'wrf'}
