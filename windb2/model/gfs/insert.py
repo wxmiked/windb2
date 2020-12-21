@@ -79,7 +79,7 @@ class InsertGFS(Insert):
 
         # Create a new table if necessary and add an initialization time column
         if not self.windb2.table_exists('{}_{}'.format(table_var_name, domain_key)):
-            self.create_new_table(domain_key, var_name, ('value',), ('real',))
+            self.create_new_table(domain_key, table_var_name, ('value',), ('real',))
             self._create_initialization_time_column(table_var_name, domain_key)
 
         # Get the geomkeys associated with the coordinates
