@@ -118,7 +118,7 @@ class InsertGFS(Insert):
         # Insert the data
         temp_file.flush()
         insert_columns = ('domainkey', 'geomkey', 't', 'value', 'height', 'init')
-        self.windb2.curs.copy_from(open(temp_file.name, 'r'), '{}_{}'.format(var_name, domain_key), sep=',',
+        self.windb2.curs.copy_from(open(temp_file.name, 'r'), '{}_{}'.format(table_var_name, domain_key), sep=',',
                                    columns=insert_columns)
         # Commit the changes
         self.windb2.conn.commit()
