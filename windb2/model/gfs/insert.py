@@ -29,13 +29,14 @@ class InsertGFS(Insert):
         # Logging
         self.logger = logging.getLogger('windb2')
 
-    def insert_variable(self, gfsfile, var_name, domain_key=None, replace_data=False, sql_where="true",
+    def insert_variable(self, gfsfile, var_name, table_var_name, domain_key=None, replace_data=False, sql_where="true",
                         mask=None, zero_seconds=False):
         """Inserts a GFS GRIB into a WinDB2 database.
        *
        * windb2Conn - Connection to a WinDB2 database.
        * ncfile - Either an open file or a string name of a file to open.
-       * var_name - Name of WinDB2 supported variable or a WRF 3D variable (currently WIND, THETA, RHO).
+       * var_name - Variable name in the GFS file
+       * table_var_name - Name of the table, which can be different than the GFS variable name (e.g. a CF Convention compliant name)
        * domain_key - Existing domain key in the database. If left blank, a new domain will be created.
        * replace_data - Deletes data for the same time in the database if True. Useful for freshening data.
        * file_type - Type of netCDF file to insert: {'windb2' (default), or 'wrf'}
@@ -78,9 +79,9 @@ class InsertGFS(Insert):
                 self.mask_domain(domain_key, mask)
 
         # Create a new table if necessary and add an initialization time column
-        if not self.windb2.table_exists('{}_{}'.format(var_name.lower(), domain_key)):
-            self.create_new_table(domain_key, var_name, ('value',), ('real',))
-            self._create_initialization_time_column(var_name.lower(), domain_key)
+        if not self.windb2.table_exists('{}_{}'.format(table_var_name, domain_key)):
+            self.create_new_table(domain_key, table_var_name, ('value',), ('real',))
+            self._create_initialization_time_column(table_var_name, domain_key)
 
         # Get the geomkeys associated with the coordinates
         horizgeomkey = self.calculateHorizWindGeomKeys(domain_key, nlong, nlat)
@@ -118,7 +119,7 @@ class InsertGFS(Insert):
         # Insert the data
         temp_file.flush()
         insert_columns = ('domainkey', 'geomkey', 't', 'value', 'height', 'init')
-        self.windb2.curs.copy_from(open(temp_file.name, 'r'), '{}_{}'.format(var_name, domain_key), sep=',',
+        self.windb2.curs.copy_from(open(temp_file.name, 'r'), '{}_{}'.format(table_var_name, domain_key), sep=',',
                                    columns=insert_columns)
         # Commit the changes
         self.windb2.conn.commit()
