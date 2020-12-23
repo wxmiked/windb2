@@ -1,9 +1,10 @@
-.idea/*
+.idea/
 *.pyc
 *.tmp
 *~
 .flake8
-.vscode/*
-.venv/*
+.vscode/
+.venv/
 gfs.*z*
 **/gfs.*
+env/
