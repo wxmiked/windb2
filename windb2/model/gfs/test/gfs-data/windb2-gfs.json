@@ -1,9 +1,31 @@
 {
   "vars": {
-    "prate": {
+    "u10": {
       "dims": 2,
+      "cfgribTypeOfLevel": "heightAboveGround",
       "insert": [
         10
+      ]
+    },
+    "v10": {
+      "dims": 2,
+      "cfgribTypeOfLevel": "heightAboveGround",
+      "insert": [
+        10
+      ]
+    },
+    "t2m": {
+      "dims": 2,
+      "cfgribTypeOfLevel": "heightAboveGround",
+      "insert": [
+        2
+      ]
+    },
+    "r2": {
+      "dims": 2,
+      "cfgribTypeOfLevel": "heightAboveGround",
+      "insert": [
+        2
       ]
     }
   },

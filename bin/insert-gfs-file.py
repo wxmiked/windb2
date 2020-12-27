@@ -76,7 +76,8 @@ for var in windb2_config.config['vars']:
         # Open the GRIB2 file using cfgrib
         logger.debug('Trying to open variable: {}'.format(var))
         with xarray.open_dataset(args.gribfile, engine='cfgrib', backend_kwargs=backend_kwargs) as gribfile:
-            (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, domain_key=args.domain_key,
+            (times_inserted, domain_key_returned) = inserter.insert_variable(gribfile, var, windb2_config.config['vars'][var]['cfVarName'],
+                                                                             domain_key=args.domain_key,
                                                                              replace_data=args.overwrite,
                                                                              mask=args.mask)
 
