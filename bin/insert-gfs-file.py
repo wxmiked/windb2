@@ -73,7 +73,7 @@ for var in windb2_config.config['vars']:
         backend_kwargs['filter_by_keys']['level'] = var_config['insert'][0]
         try:
           # stepType is optional and is needed for PRATE
-          backend_kwargs['filter_by_keys']['stepType'] = var_config['cfGribStepType'][0]
+          backend_kwargs['filter_by_keys']['stepType'] = var_config['cfgribStepType'][0]
         except KeyError:
           pass
 
