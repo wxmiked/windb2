@@ -44,6 +44,7 @@
             "enum": [
               "instant",
               "avg"
+            ]
           },
           "copy": {
             "type": "boolean"
