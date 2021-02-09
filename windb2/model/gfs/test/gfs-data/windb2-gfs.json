@@ -29,5 +29,14 @@
       ]
     }
   },
+  "prate": {
+    "dims": 2,
+    "cfgribTypeOfLevel": "surface",
+    "cfgribStepType": "instant",
+    "cfVarName": "lwe_precipitation_rate",
+    "insert": [
+      0
+    ]
+  },
   "loglevel": "WARNING"
 }
