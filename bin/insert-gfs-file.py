@@ -71,8 +71,11 @@ for var in windb2_config.config['vars']:
         # Calculate the level required
         backend_kwargs = {'filter_by_keys': {'typeOfLevel': var_config['cfgribTypeOfLevel']}}
         backend_kwargs['filter_by_keys']['level'] = var_config['insert'][0]
-        if var_config['stepType'] is not None:
+        try:
+          # stepType is optional and is needed for PRATE
           backend_kwargs['filter_by_keys']['stepType'] = var_config['stepType'][0]
+        except KeyError:
+          pass
 
         # Open the GRIB2 file using cfgrib
         logger.debug('Trying to open variable: {}'.format(var))
