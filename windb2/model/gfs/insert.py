@@ -127,11 +127,9 @@ class InsertGFS(Insert):
         # Calaculate the insert rate
         elapsedTime = (datetime.now() - startTime).seconds
         try:
-            print('Inserted {} x,y wind points at {} I/s'.format(counter, counter / elapsedTime))
-        except ZeroDivisionError:
-            print('Inserted {} x,y wind points'.format(counter))
-        except UnboundLocalError:
-            print('Inserted {} x,y wind points'.format(counter))
+            print(f"Inserted {counter} x,y points into {tableName}_{domainKey} at {insertRate} I/s")
+        except ZeroDivisionError, UnboundLocalError:
+            print(f"Inserted {counter} x,y points into {tableName}_{domainKey}")
 
         # Close the tempfile so it is deleted
         temp_file.close()
