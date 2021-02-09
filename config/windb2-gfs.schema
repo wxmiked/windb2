@@ -39,6 +39,12 @@
               "potentialVorticity"
             ]
           },
+          "cfgribTypeOfLevel": {
+            "type": "string",
+            "enum": [
+              "instant",
+              "avg"
+          },
           "copy": {
             "type": "boolean"
           }
