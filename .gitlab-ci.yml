@@ -3,6 +3,9 @@ image: docker:latest
 services:
   - docker:dind
 
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+
 build-client:
   stage: build
   before_script:
