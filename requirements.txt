@@ -31,5 +31,5 @@ rope==0.14.0
 scipy==1.2.1
 six==1.12.0
 typing==3.6.6
-xarray==0.11.3
+xarray==0.16.2
 https://github.com/matplotlib/basemap/archive/v1.1.0.tar.gz
