@@ -39,7 +39,7 @@
               "potentialVorticity"
             ]
           },
-          "cfgribTypeOfLevel": {
+          "cfgribStepType": {
             "type": "string",
             "enum": [
               "instant",
