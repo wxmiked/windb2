@@ -1,5 +1,4 @@
 attrs==18.2.0
-basemap==1.1.0
 cffi==1.12.1
 cfgrib==0.9.7.1
 cftime==1.0.3.4
