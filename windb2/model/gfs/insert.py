@@ -129,9 +129,9 @@ class InsertGFS(Insert):
         try:
             print("Inserted {} x,y points into {}_{} at {} I/s".format(counter, table_var_name, domain_key, counter/elapsedTime))
         except ZeroDivisionError:
-            print("Inserted {counter} x,y points into {tableName}_{domainKey}".format(counter, table_var_name, domain_key))
+            print("Inserted {} x,y points into {}_{}".format(counter, table_var_name, domain_key))
         except UnboundLocalError:
-            print("Inserted {counter} x,y points into {tableName}_{domainKey}".format(counter, table_var_name, domain_key))
+            print("Inserted {} x,y points into {}_{}".format(counter, table_var_name, domain_key))
 
         # Close the tempfile so it is deleted
         temp_file.close()
