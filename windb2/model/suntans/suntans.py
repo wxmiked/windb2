@@ -172,7 +172,7 @@ def insertNcFile(windb2_conn, ncFile, domainKey=None, tableName="current", repla
         elapsedTime = (datetime.now() - startTime).seconds
         if elapsedTime > 0:
             insertRate = counter / elapsedTime
-            print("Inserted ", counter, " x,y wind points at ", insertRate, " I/s")
+            print("Inserted {} x,y points into {}_{} at {} I/s".format(counter, tableName, domainKey, counter/elapsedTime))
 
         # Close the tempfile so it is deleted
         temp_file.close()
