@@ -25,7 +25,7 @@ class WinDB2:
         """
         
         ## Open the database
-        DSN = 'dbname={} user={} port={}'.format(self._dbName, self._dbUser, self._port)
+        DSN = 'host={} dbname={} user={} port={}'.format(self._dbHost, self._dbName, self._dbUser, self._port)
         if self._dbHost != 'localhost': # psycopg2 will connect to the unix socket if host isn't specified
             DSN += ' host={}'.format(self._dbHost)
         print("Opening connection using dns:", DSN)
