@@ -1,0 +1,28 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "insert-gfs-file.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/insert-gfs-file.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/windb2/model/gfs/test/gfs-data/",
+      "env": {
+        "WINDB2_HOME": "${workspaceFolder}"
+      },
+      "args": [
+        "-n",
+        "-p",
+        "54324",
+        "localhost",
+        "postgres",
+        "windb2",
+        "gfs-file.grb2"
+      ]
+    }
+  ]
+}
