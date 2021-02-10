@@ -3,6 +3,7 @@
     "u10": {
       "dims": 2,
       "cfgribTypeOfLevel": "heightAboveGround",
+      "cfVarName": "eastward_wind",
       "insert": [
         10
       ]
@@ -10,6 +11,7 @@
     "v10": {
       "dims": 2,
       "cfgribTypeOfLevel": "heightAboveGround",
+      "cfVarName": "northward_wind",
       "insert": [
         10
       ]
@@ -17,6 +19,7 @@
     "t2m": {
       "dims": 2,
       "cfgribTypeOfLevel": "heightAboveGround",
+      "cfVarName": "air_temperature",
       "insert": [
         2
       ]
@@ -24,6 +27,7 @@
     "r2": {
       "dims": 2,
       "cfgribTypeOfLevel": "heightAboveGround",
+      "cfVarName": "relative_humidity",
       "insert": [
         2
       ]
