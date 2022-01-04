@@ -158,19 +158,19 @@ def get_cardinal_from_deg(dir):
     """
 
     if dir >= 337.5 and dir < 360 or dir < 22.5:
-       return 'N';
+       return 'N'
     elif dir >= 22.5  and dir < 67.5:
         return 'NE'
     elif dir >= 67.5  and dir < 112.5:
-    	   return 'E'
+        return 'E'
     elif dir >= 112.5 and dir < 157.5:
         return 'SE'
     elif dir >= 157.5 and dir < 202.5:
-    	   return 'S'
+        return 'S'
     elif dir >= 202.5 and dir < 247.5:
         return 'SW'
     elif dir >= 247.5 and dir < 292.5:
-    	   return 'W'
+        return 'W'
     elif dir >= 292.5 and dir < 337.5:
         return 'NW'
     else:
