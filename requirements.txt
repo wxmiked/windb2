@@ -6,7 +6,7 @@ Click==7.0
 cycler==0.10.0
 entrypoints==0.3
 flake8==3.7.6
-future==0.17.1
+future==0.18.3
 geos==0.2.1
 itsdangerous==1.1.0
 Jinja2>=2.10.1
